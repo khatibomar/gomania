@@ -1,0 +1,23 @@
+services:
+  database:
+    container_name: gomania_database
+    restart: always
+    image: postgres:17-alpine
+    ports:
+      - "5430:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/pg_hba.conf:/etc/pg_hba.conf
+    command: [ '-c', 'hba_file=/etc/pg_hba.conf' ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h localhost -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    cpu_count: 2
+
+volumes:
+  pgdata: {}
