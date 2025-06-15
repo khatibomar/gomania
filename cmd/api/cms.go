@@ -111,13 +111,8 @@ func (app *application) discoveryHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) searchProgramsHandler(w http.ResponseWriter, r *http.Request, query string) {
-	external := r.URL.Query().Get("external") == "true"
-	importResults := r.URL.Query().Get("import") == "true"
-
 	req := service.SearchRequest{
-		Query:            query,
-		SearchExternal:   external,
-		ImportIfNotFound: importResults,
+		Query: query,
 	}
 
 	programs, err := app.programService.SearchPrograms(r.Context(), req)
@@ -133,6 +128,56 @@ func (app *application) searchProgramsHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := app.writeJSON(w, http.StatusOK, envelope{"search": response}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// Category handlers
+func (app *application) createCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	var req service.CategoryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	category, err := app.programService.CreateCategory(r.Context(), req)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusCreated, envelope{"category": category}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) listCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+	categories, err := app.programService.GetCategories(r.Context())
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusOK, envelope{"categories": categories}, nil); err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *application) getProgramsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	programs, err := app.programService.GetProgramsByCategory(r.Context(), id)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := app.writeJSON(w, http.StatusOK, envelope{"programs": programs}, nil); err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
 }

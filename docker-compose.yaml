@@ -10,14 +10,24 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./data/pg_hba.conf:/etc/pg_hba.conf
-    command: [ '-c', 'hba_file=/etc/pg_hba.conf' ]
+    command: ["-c", "hba_file=/etc/pg_hba.conf"]
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -h localhost -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     cpu_count: 2
+
+  database-ui:
+    image: sosedoff/pgweb:0.16.2
+    environment:
+      - PGWEB_DATABASE_URL=postgres://postgres:postgres@database:5432/postgres?sslmode=disable&search_path=public
+    ports:
+      - 8081:8081
+    restart: on-failure
+    depends_on:
+      - database
 
 volumes:
   pgdata: {}

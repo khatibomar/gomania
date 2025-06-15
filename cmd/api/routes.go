@@ -19,6 +19,11 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("PUT /v1/cms/programs/{id}", app.updateProgramHandler)
 	mux.HandleFunc("DELETE /v1/cms/programs/{id}", app.deleteProgramHandler)
 
+	// CMS Categories
+	mux.HandleFunc("POST /v1/cms/categories", app.createCategoryHandler)
+	mux.HandleFunc("GET /v1/cms/categories", app.listCategoriesHandler)
+	mux.HandleFunc("GET /v1/cms/categories/{id}/programs", app.getProgramsByCategoryHandler)
+
 	// discovery
 	mux.HandleFunc("GET /v1/programs", app.discoveryHandler)
 

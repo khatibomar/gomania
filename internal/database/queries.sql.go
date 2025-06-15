@@ -11,66 +11,61 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createExternalSource = `-- name: CreateExternalSource :one
-INSERT INTO external_sources (program_id, source_name, external_id)
-VALUES ($1, $2, $3)
-RETURNING id, program_id, source_name, external_id
+const createCategory = `-- name: CreateCategory :one
+INSERT INTO categories (name)
+VALUES ($1)
+RETURNING id, name
 `
 
-type CreateExternalSourceParams struct {
-	ProgramID  pgtype.UUID `db:"program_id"`
-	SourceName string      `db:"source_name"`
-	ExternalID string      `db:"external_id"`
+type CreateCategoryRow struct {
+	ID   pgtype.UUID `db:"id"`
+	Name string      `db:"name"`
 }
 
-func (q *Queries) CreateExternalSource(ctx context.Context, arg CreateExternalSourceParams) (ExternalSource, error) {
-	row := q.db.QueryRow(ctx, createExternalSource, arg.ProgramID, arg.SourceName, arg.ExternalID)
-	var i ExternalSource
-	err := row.Scan(
-		&i.ID,
-		&i.ProgramID,
-		&i.SourceName,
-		&i.ExternalID,
-	)
+func (q *Queries) CreateCategory(ctx context.Context, name string) (CreateCategoryRow, error) {
+	row := q.db.QueryRow(ctx, createCategory, name)
+	var i CreateCategoryRow
+	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }
 
 const createProgram = `-- name: CreateProgram :one
-INSERT INTO programs (title, description, category, language, duration, published_at, source)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, title, description, category, language, duration, published_at, source
+INSERT INTO programs (title, description, category_id, language, duration)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, title, description, language, duration
 `
 
 type CreateProgramParams struct {
-	Title       string           `db:"title"`
-	Description pgtype.Text      `db:"description"`
-	Category    pgtype.Text      `db:"category"`
-	Language    pgtype.Text      `db:"language"`
-	Duration    pgtype.Int4      `db:"duration"`
-	PublishedAt pgtype.Timestamp `db:"published_at"`
-	Source      string           `db:"source"`
+	Title       string      `db:"title"`
+	Description pgtype.Text `db:"description"`
+	CategoryID  pgtype.UUID `db:"category_id"`
+	Language    pgtype.Text `db:"language"`
+	Duration    pgtype.Int4 `db:"duration"`
 }
 
-func (q *Queries) CreateProgram(ctx context.Context, arg CreateProgramParams) (Program, error) {
+type CreateProgramRow struct {
+	ID          pgtype.UUID `db:"id"`
+	Title       string      `db:"title"`
+	Description pgtype.Text `db:"description"`
+	Language    pgtype.Text `db:"language"`
+	Duration    pgtype.Int4 `db:"duration"`
+}
+
+func (q *Queries) CreateProgram(ctx context.Context, arg CreateProgramParams) (CreateProgramRow, error) {
 	row := q.db.QueryRow(ctx, createProgram,
 		arg.Title,
 		arg.Description,
-		arg.Category,
+		arg.CategoryID,
 		arg.Language,
 		arg.Duration,
-		arg.PublishedAt,
-		arg.Source,
 	)
-	var i Program
+	var i CreateProgramRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Description,
-		&i.Category,
 		&i.Language,
 		&i.Duration,
-		&i.PublishedAt,
-		&i.Source,
 	)
 	return i, err
 }
@@ -84,25 +79,27 @@ func (q *Queries) DeleteProgram(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
-const getExternalSources = `-- name: GetExternalSources :many
-SELECT id, program_id, source_name, external_id FROM external_sources WHERE program_id = $1
+const getCategories = `-- name: GetCategories :many
+SELECT id, name
+FROM categories
+ORDER BY name
 `
 
-func (q *Queries) GetExternalSources(ctx context.Context, programID pgtype.UUID) ([]ExternalSource, error) {
-	rows, err := q.db.Query(ctx, getExternalSources, programID)
+type GetCategoriesRow struct {
+	ID   pgtype.UUID `db:"id"`
+	Name string      `db:"name"`
+}
+
+func (q *Queries) GetCategories(ctx context.Context) ([]GetCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, getCategories)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ExternalSource
+	var items []GetCategoriesRow
 	for rows.Next() {
-		var i ExternalSource
-		if err := rows.Scan(
-			&i.ID,
-			&i.ProgramID,
-			&i.SourceName,
-			&i.ExternalID,
-		); err != nil {
+		var i GetCategoriesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -114,75 +111,129 @@ func (q *Queries) GetExternalSources(ctx context.Context, programID pgtype.UUID)
 }
 
 const getProgram = `-- name: GetProgram :one
-SELECT id, title, description, category, language, duration, published_at, source FROM programs WHERE id = $1
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+WHERE p.id = $1
 `
 
-func (q *Queries) GetProgram(ctx context.Context, id pgtype.UUID) (Program, error) {
+type GetProgramRow struct {
+	ID           pgtype.UUID `db:"id"`
+	Title        string      `db:"title"`
+	Description  pgtype.Text `db:"description"`
+	Language     pgtype.Text `db:"language"`
+	Duration     pgtype.Int4 `db:"duration"`
+	CategoryName pgtype.Text `db:"category_name"`
+}
+
+func (q *Queries) GetProgram(ctx context.Context, id pgtype.UUID) (GetProgramRow, error) {
 	row := q.db.QueryRow(ctx, getProgram, id)
-	var i Program
+	var i GetProgramRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Description,
-		&i.Category,
 		&i.Language,
 		&i.Duration,
-		&i.PublishedAt,
-		&i.Source,
+		&i.CategoryName,
 	)
 	return i, err
 }
 
-const getProgramByExternalID = `-- name: GetProgramByExternalID :one
-SELECT p.id, p.title, p.description, p.category, p.language, p.duration, p.published_at, p.source FROM programs p
-JOIN external_sources es ON p.id = es.program_id
-WHERE es.source_name = $1 AND es.external_id = $2
+const getProgramsByCategory = `-- name: GetProgramsByCategory :many
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+JOIN categories c ON p.category_id = c.id
+WHERE c.id = $1
+ORDER BY p.created_at DESC
 `
 
-type GetProgramByExternalIDParams struct {
-	SourceName string `db:"source_name"`
-	ExternalID string `db:"external_id"`
+type GetProgramsByCategoryRow struct {
+	ID           pgtype.UUID `db:"id"`
+	Title        string      `db:"title"`
+	Description  pgtype.Text `db:"description"`
+	Language     pgtype.Text `db:"language"`
+	Duration     pgtype.Int4 `db:"duration"`
+	CategoryName string      `db:"category_name"`
 }
 
-func (q *Queries) GetProgramByExternalID(ctx context.Context, arg GetProgramByExternalIDParams) (Program, error) {
-	row := q.db.QueryRow(ctx, getProgramByExternalID, arg.SourceName, arg.ExternalID)
-	var i Program
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.Description,
-		&i.Category,
-		&i.Language,
-		&i.Duration,
-		&i.PublishedAt,
-		&i.Source,
-	)
-	return i, err
+func (q *Queries) GetProgramsByCategory(ctx context.Context, id pgtype.UUID) ([]GetProgramsByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, getProgramsByCategory, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetProgramsByCategoryRow
+	for rows.Next() {
+		var i GetProgramsByCategoryRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Language,
+			&i.Duration,
+			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPrograms = `-- name: ListPrograms :many
-SELECT id, title, description, category, language, duration, published_at, source FROM programs
-ORDER BY published_at DESC
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+ORDER BY p.created_at DESC
 `
 
-func (q *Queries) ListPrograms(ctx context.Context) ([]Program, error) {
+type ListProgramsRow struct {
+	ID           pgtype.UUID `db:"id"`
+	Title        string      `db:"title"`
+	Description  pgtype.Text `db:"description"`
+	Language     pgtype.Text `db:"language"`
+	Duration     pgtype.Int4 `db:"duration"`
+	CategoryName pgtype.Text `db:"category_name"`
+}
+
+func (q *Queries) ListPrograms(ctx context.Context) ([]ListProgramsRow, error) {
 	rows, err := q.db.Query(ctx, listPrograms)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Program
+	var items []ListProgramsRow
 	for rows.Next() {
-		var i Program
+		var i ListProgramsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
 			&i.Description,
-			&i.Category,
 			&i.Language,
 			&i.Duration,
-			&i.PublishedAt,
-			&i.Source,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}
@@ -195,31 +246,46 @@ func (q *Queries) ListPrograms(ctx context.Context) ([]Program, error) {
 }
 
 const searchPrograms = `-- name: SearchPrograms :many
-SELECT id, title, description, category, language, duration, published_at, source FROM programs
-WHERE title ILIKE '%' || $1 || '%'
-   OR description ILIKE '%' || $1 || '%'
-   OR category ILIKE '%' || $1 || '%'
-ORDER BY published_at DESC
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+WHERE p.title ILIKE '%' || $1 || '%'
+   OR p.description ILIKE '%' || $1 || '%'
+   OR c.name ILIKE '%' || $1 || '%'
+ORDER BY p.created_at DESC
 `
 
-func (q *Queries) SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]Program, error) {
+type SearchProgramsRow struct {
+	ID           pgtype.UUID `db:"id"`
+	Title        string      `db:"title"`
+	Description  pgtype.Text `db:"description"`
+	Language     pgtype.Text `db:"language"`
+	Duration     pgtype.Int4 `db:"duration"`
+	CategoryName pgtype.Text `db:"category_name"`
+}
+
+func (q *Queries) SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProgramsRow, error) {
 	rows, err := q.db.Query(ctx, searchPrograms, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Program
+	var items []SearchProgramsRow
 	for rows.Next() {
-		var i Program
+		var i SearchProgramsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
 			&i.Description,
-			&i.Category,
 			&i.Language,
 			&i.Duration,
-			&i.PublishedAt,
-			&i.Source,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}
@@ -233,41 +299,50 @@ func (q *Queries) SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]P
 
 const updateProgram = `-- name: UpdateProgram :one
 UPDATE programs
-SET title = $2, description = $3, category = $4, language = $5, duration = $6, published_at = $7
+SET
+    title = $2,
+    description = $3,
+    category_id = $4,
+    language = $5,
+    duration = $6,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, title, description, category, language, duration, published_at, source
+RETURNING id, title, description, language, duration
 `
 
 type UpdateProgramParams struct {
-	ID          pgtype.UUID      `db:"id"`
-	Title       string           `db:"title"`
-	Description pgtype.Text      `db:"description"`
-	Category    pgtype.Text      `db:"category"`
-	Language    pgtype.Text      `db:"language"`
-	Duration    pgtype.Int4      `db:"duration"`
-	PublishedAt pgtype.Timestamp `db:"published_at"`
+	ID          pgtype.UUID `db:"id"`
+	Title       string      `db:"title"`
+	Description pgtype.Text `db:"description"`
+	CategoryID  pgtype.UUID `db:"category_id"`
+	Language    pgtype.Text `db:"language"`
+	Duration    pgtype.Int4 `db:"duration"`
 }
 
-func (q *Queries) UpdateProgram(ctx context.Context, arg UpdateProgramParams) (Program, error) {
+type UpdateProgramRow struct {
+	ID          pgtype.UUID `db:"id"`
+	Title       string      `db:"title"`
+	Description pgtype.Text `db:"description"`
+	Language    pgtype.Text `db:"language"`
+	Duration    pgtype.Int4 `db:"duration"`
+}
+
+func (q *Queries) UpdateProgram(ctx context.Context, arg UpdateProgramParams) (UpdateProgramRow, error) {
 	row := q.db.QueryRow(ctx, updateProgram,
 		arg.ID,
 		arg.Title,
 		arg.Description,
-		arg.Category,
+		arg.CategoryID,
 		arg.Language,
 		arg.Duration,
-		arg.PublishedAt,
 	)
-	var i Program
+	var i UpdateProgramRow
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Description,
-		&i.Category,
 		&i.Language,
 		&i.Duration,
-		&i.PublishedAt,
-		&i.Source,
 	)
 	return i, err
 }

@@ -11,15 +11,15 @@ import (
 )
 
 type Querier interface {
-	CreateExternalSource(ctx context.Context, arg CreateExternalSourceParams) (ExternalSource, error)
-	CreateProgram(ctx context.Context, arg CreateProgramParams) (Program, error)
+	CreateCategory(ctx context.Context, name string) (CreateCategoryRow, error)
+	CreateProgram(ctx context.Context, arg CreateProgramParams) (CreateProgramRow, error)
 	DeleteProgram(ctx context.Context, id pgtype.UUID) error
-	GetExternalSources(ctx context.Context, programID pgtype.UUID) ([]ExternalSource, error)
-	GetProgram(ctx context.Context, id pgtype.UUID) (Program, error)
-	GetProgramByExternalID(ctx context.Context, arg GetProgramByExternalIDParams) (Program, error)
-	ListPrograms(ctx context.Context) ([]Program, error)
-	SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]Program, error)
-	UpdateProgram(ctx context.Context, arg UpdateProgramParams) (Program, error)
+	GetCategories(ctx context.Context) ([]GetCategoriesRow, error)
+	GetProgram(ctx context.Context, id pgtype.UUID) (GetProgramRow, error)
+	GetProgramsByCategory(ctx context.Context, id pgtype.UUID) ([]GetProgramsByCategoryRow, error)
+	ListPrograms(ctx context.Context) ([]ListProgramsRow, error)
+	SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProgramsRow, error)
+	UpdateProgram(ctx context.Context, arg UpdateProgramParams) (UpdateProgramRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

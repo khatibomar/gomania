@@ -1,40 +1,81 @@
 -- name: GetProgram :one
-SELECT * FROM programs WHERE id = $1;
-
--- name: GetProgramByExternalID :one
-SELECT p.* FROM programs p
-JOIN external_sources es ON p.id = es.program_id
-WHERE es.source_name = $1 AND es.external_id = $2;
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+WHERE p.id = $1;
 
 -- name: ListPrograms :many
-SELECT * FROM programs
-ORDER BY published_at DESC;
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+ORDER BY p.created_at DESC;
 
 -- name: SearchPrograms :many
-SELECT * FROM programs
-WHERE title ILIKE '%' || $1 || '%'
-   OR description ILIKE '%' || $1 || '%'
-   OR category ILIKE '%' || $1 || '%'
-ORDER BY published_at DESC;
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+LEFT JOIN categories c ON p.category_id = c.id
+WHERE p.title ILIKE '%' || $1 || '%'
+   OR p.description ILIKE '%' || $1 || '%'
+   OR c.name ILIKE '%' || $1 || '%'
+ORDER BY p.created_at DESC;
 
 -- name: CreateProgram :one
-INSERT INTO programs (title, description, category, language, duration, published_at, source)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING *;
+INSERT INTO programs (title, description, category_id, language, duration)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, title, description, language, duration;
 
 -- name: UpdateProgram :one
 UPDATE programs
-SET title = $2, description = $3, category = $4, language = $5, duration = $6, published_at = $7
+SET
+    title = $2,
+    description = $3,
+    category_id = $4,
+    language = $5,
+    duration = $6,
+    updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING *;
+RETURNING id, title, description, language, duration;
 
 -- name: DeleteProgram :exec
 DELETE FROM programs WHERE id = $1;
 
--- name: CreateExternalSource :one
-INSERT INTO external_sources (program_id, source_name, external_id)
-VALUES ($1, $2, $3)
-RETURNING *;
+-- name: GetCategories :many
+SELECT id, name
+FROM categories
+ORDER BY name;
 
--- name: GetExternalSources :many
-SELECT * FROM external_sources WHERE program_id = $1;
+-- name: CreateCategory :one
+INSERT INTO categories (name)
+VALUES ($1)
+RETURNING id, name;
+
+-- name: GetProgramsByCategory :many
+SELECT
+    p.id,
+    p.title,
+    p.description,
+    p.language,
+    p.duration,
+    c.name as category_name
+FROM programs p
+JOIN categories c ON p.category_id = c.id
+WHERE c.id = $1
+ORDER BY p.created_at DESC;

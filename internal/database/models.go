@@ -8,35 +8,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Episode struct {
-	ID            pgtype.UUID      `db:"id"`
-	ProgramID     pgtype.UUID      `db:"program_id"`
-	Title         string           `db:"title"`
-	Description   pgtype.Text      `db:"description"`
-	EpisodeNumber pgtype.Int4      `db:"episode_number"`
-	SeasonNumber  pgtype.Int4      `db:"season_number"`
-	Duration      pgtype.Int4      `db:"duration"`
-	PublishedAt   pgtype.Timestamp `db:"published_at"`
-	AudioUrl      pgtype.Text      `db:"audio_url"`
-	Source        string           `db:"source"`
-	CreatedAt     pgtype.Timestamp `db:"created_at"`
-	UpdatedAt     pgtype.Timestamp `db:"updated_at"`
-}
-
-type ExternalSource struct {
-	ID         int32       `db:"id"`
-	ProgramID  pgtype.UUID `db:"program_id"`
-	SourceName string      `db:"source_name"`
-	ExternalID string      `db:"external_id"`
+type Category struct {
+	ID        pgtype.UUID        `db:"id"`
+	Name      string             `db:"name"`
+	CreatedAt pgtype.Timestamptz `db:"created_at"`
 }
 
 type Program struct {
-	ID          pgtype.UUID      `db:"id"`
-	Title       string           `db:"title"`
-	Description pgtype.Text      `db:"description"`
-	Category    pgtype.Text      `db:"category"`
-	Language    pgtype.Text      `db:"language"`
-	Duration    pgtype.Int4      `db:"duration"`
-	PublishedAt pgtype.Timestamp `db:"published_at"`
-	Source      string           `db:"source"`
+	ID          pgtype.UUID        `db:"id"`
+	Title       string             `db:"title"`
+	Description pgtype.Text        `db:"description"`
+	CategoryID  pgtype.UUID        `db:"category_id"`
+	Language    pgtype.Text        `db:"language"`
+	Duration    pgtype.Int4        `db:"duration"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at"`
+}
+
+type User struct {
+	ID           pgtype.UUID        `db:"id"`
+	Email        string             `db:"email"`
+	PasswordHash string             `db:"password_hash"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at"`
 }

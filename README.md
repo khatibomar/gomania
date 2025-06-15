@@ -1,21 +1,21 @@
 # Gomania - Arabic Podcast Management System
 
-A comprehensive podcast content management and discovery system built with Go, featuring Arabic content support and external source integration (iTunes API).
+A simple and clean podcast content management system built with Go, focusing on essential fields and Arabic content support.
 
 ## 🚀 Features
 
-- **CMS System**: Internal content management for programs, episodes, and metadata
-- **Discovery API**: Public search and browsing interface  
-- **External Integration**: iTunes API import with extensible architecture
-- **Arabic Content**: Full Arabic language support with RTL content
-- **Structured Logging**: Comprehensive logging with slog
+- **Simple CMS**: Clean content management for programs with essential fields only
+- **Category Management**: Organize programs by categories
+- **Arabic Content**: Full Arabic language support
+- **External Source Integration**: Optional iTunes search integration with auto-import capability
+- **Clean Architecture**: Simple layered design with clear separation of concerns
 - **Type Safety**: SQLC-generated database queries
-- **Clean Architecture**: Layered design with clear separation of concerns
+- **RESTful API**: Simple and intuitive API endpoints
 
 ## 📋 Requirements
 
 - Go 1.24+
-- PostgreSQL 17
+- dbmate
 - Docker & Docker Compose
 
 ## 🛠️ Installation & Setup
@@ -38,34 +38,35 @@ export GOMANIA_CONNECTION_STRING="postgres://postgres:postgres@localhost:5430/po
 
 ### 4. Initialize Database
 ```bash
-# Generate database code
-sqlc generate
-
-# Initialize database with existing migrations
-go run init_db.go
+make docker-up
+make gen
+make db-up
 ```
 
 ### 5. Run Server
 ```bash
-go run cmd/api/*.go
+make build api
 ```
 
 Server will start on `http://localhost:4000`
 
-## 📊 Sample Data
+## 📊 Database Schema
 
-The system comes pre-loaded with 10 Arabic podcast programs:
+The system uses a simplified schema with only essential fields:
 
-1. **تقنية بودكاست** - Technology discussions
-2. **ريادة الأعمال العربية** - Arabic entrepreneurship  
-3. **علوم المستقبل** - Future sciences
-4. **كوميديا الشارع** - Street comedy
-5. **أخبار التقنية اليومية** - Daily tech news
-6. **تعلم البرمجة** - Programming tutorials
-7. **صوت الشباب** - Youth voices
-8. **مستثمر ذكي** - Smart investing
-9. **تاريخ وحضارة** - History and civilization
-10. **صحة ولياقة** - Health and fitness
+### Tables
+- **programs**: Core podcast programs with essential fields
+- **categories**: Simple category organization
+- **users**: Basic user authentication for CMS
+
+### Essential Fields (Programs)
+- **title**: Program title
+- **description**: Program description
+- **category_id**: Foreign key to category
+- **language**: Content language (default: Arabic)
+- **duration**: Program duration in seconds
+- **created_at**: Timestamp when record was created
+- **updated_at**: Timestamp when record was last updated
 
 ## 🌐 API Documentation
 
@@ -74,7 +75,9 @@ The system comes pre-loaded with 10 Arabic podcast programs:
 http://localhost:4000
 ```
 
-### Health Check
+### Health & Monitoring
+
+#### Health Check
 ```http
 GET /v1/healthcheck
 ```
@@ -89,6 +92,13 @@ GET /v1/healthcheck
   }
 }
 ```
+
+#### Debug Information
+```http
+GET /debug/vars
+```
+
+Returns server runtime statistics and metrics.
 
 ---
 
@@ -109,16 +119,9 @@ GET /v1/cms/programs
       "id": "770e8400-e29b-41d4-a716-446655440001",
       "title": "تقنية بودكاست",
       "description": "برنامج أسبوعي يناقش أحدث التطورات في عالم التكنولوجيا",
-      "summary": "برنامج تقني أسبوعي",
       "language": "ar",
-      "country": "SA",
-      "author": "أحمد محمد",
-      "publisher": "شبكة تقنية",
-      "status": "active",
-      "total_episodes": 25,
-      "rating": 4.5,
-      "source": "local",
-      "published_at": "2024-01-15T10:00:00Z"
+      "duration": 1800,
+      "category_name": "تقنية"
     }
   ]
 }
@@ -129,6 +132,27 @@ GET /v1/cms/programs
 GET /v1/cms/programs/{id}
 ```
 
+**Parameters:**
+- `id` (path, required): Program UUID
+
+**Response:**
+```json
+{
+  "program": {
+    "id": "770e8400-e29b-41d4-a716-446655440001",
+    "title": "تقنية بودكاست",
+    "description": "برنامج أسبوعي يناقش أحدث التطورات في عالم التكنولوجيا",
+    "language": "ar",
+    "duration": 1800,
+    "category_name": "تقنية"
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Invalid UUID format
+- `404 Not Found`: Program not found
+
 #### Create Program
 ```http
 POST /v1/cms/programs
@@ -137,10 +161,30 @@ Content-Type: application/json
 {
   "title": "برنامج جديد",
   "description": "وصف البرنامج",
-  "category": "تقنية",
+  "category_id": "550e8400-e29b-41d4-a716-446655440001",
   "language": "ar",
-  "duration": 1800,
-  "published_at": "2024-01-15T10:00:00Z"
+  "duration": 1800
+}
+```
+
+**Request Fields:**
+- `title` (string, required): Program title
+- `description` (string, optional): Program description
+- `category_id` (string, optional): Category UUID
+- `language` (string, optional): Language code (default: "ar")
+- `duration` (integer, optional): Duration in seconds
+
+**Response:** `201 Created`
+```json
+{
+  "program": {
+    "id": "generated-uuid",
+    "title": "برنامج جديد",
+    "description": "وصف البرنامج",
+    "category_id": "550e8400-e29b-41d4-a716-446655440001",
+    "language": "ar",
+    "duration": 1800
+  }
 }
 ```
 
@@ -152,9 +196,26 @@ Content-Type: application/json
 {
   "title": "برنامج محدث",
   "description": "وصف محدث",
-  "category": "تقنية",
+  "category_id": "550e8400-e29b-41d4-a716-446655440001",
   "language": "ar",
   "duration": 2000
+}
+```
+
+**Parameters:**
+- `id` (path, required): Program UUID
+
+**Response:** `200 OK`
+```json
+{
+  "program": {
+    "id": "770e8400-e29b-41d4-a716-446655440001",
+    "title": "برنامج محدث",
+    "description": "وصف محدث",
+    "category_id": "550e8400-e29b-41d4-a716-446655440001",
+    "language": "ar",
+    "duration": 2000
+  }
 }
 ```
 
@@ -163,9 +224,87 @@ Content-Type: application/json
 DELETE /v1/cms/programs/{id}
 ```
 
-### Episodes, Categories, and Import Features
+**Parameters:**
+- `id` (path, required): Program UUID
 
-*Note: Episode management, category management, and iTunes import features are planned for future releases. Currently, only basic program management is implemented.*
+**Response:** `204 No Content`
+
+**Error Responses:**
+- `400 Bad Request`: Invalid UUID format
+- `404 Not Found`: Program not found
+
+### Categories
+
+#### List All Categories
+```http
+GET /v1/cms/categories
+```
+
+**Response:**
+```json
+{
+  "categories": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "تقنية"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "name": "تعليم"
+    }
+  ]
+}
+```
+
+#### Create Category
+```http
+POST /v1/cms/categories
+Content-Type: application/json
+
+{
+  "name": "فئة جديدة"
+}
+```
+
+**Request Fields:**
+- `name` (string, required): Category name
+
+**Response:** `201 Created`
+```json
+{
+  "category": {
+    "id": "generated-uuid",
+    "name": "فئة جديدة"
+  }
+}
+```
+
+#### Get Programs by Category
+```http
+GET /v1/cms/categories/{id}/programs
+```
+
+**Parameters:**
+- `id` (path, required): Category UUID
+
+**Response:**
+```json
+{
+  "category": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "name": "تقنية"
+  },
+  "programs": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440001",
+      "title": "تقنية بودكاست",
+      "description": "برنامج أسبوعي يناقش أحدث التطورات في عالم التكنولوجيا",
+      "language": "ar",
+      "duration": 1800
+    }
+  ]
+}
+```
 
 ---
 
@@ -176,43 +315,28 @@ DELETE /v1/cms/programs/{id}
 GET /v1/programs
 ```
 
-**Response:**
-```json
-{
-  "programs": [
-    {
-      "id": "770e8400-e29b-41d4-a716-446655440001",
-      "title": "تقنية بودكاست",
-      "description": "برنامج أسبوعي يناقش أحدث التطورات",
-      "language": "ar",
-      "country": "SA",
-      "author": "أحمد محمد",
-      "rating": 4.5,
-      "total_episodes": 25
-    }
-  ]
-}
-```
-
 ### Search Programs
 ```http
 GET /v1/programs?q={query}
 ```
 
-**Parameters:**
-- `q` (required): Search query
-- `external=true`: Search external sources (iTunes)
-- `import=true`: Import results if not found locally
+**Query Parameters:**
+- `q` (string, optional): Search query
+- `external` (boolean, optional): Include external sources (iTunes) in search
+- `import` (boolean, optional): Import external results if not found locally
 
 **Examples:**
 ```http
 # Basic search
 GET /v1/programs?q=تقنية
 
-# Search with external sources (iTunes integration)
+# Empty query returns all programs
+GET /v1/programs
+
+# Search with external sources
 GET /v1/programs?q=technology&external=true
 
-# Search and import if not found locally
+# Search and auto-import
 GET /v1/programs?q=podcast&external=true&import=true
 ```
 
@@ -225,13 +349,50 @@ GET /v1/programs?q=podcast&external=true&import=true
       {
         "id": "770e8400-e29b-41d4-a716-446655440001",
         "title": "تقنية بودكاست",
-        "description": "برنامج تقني أسبوعي"
+        "description": "برنامج تقني أسبوعي",
+        "language": "ar",
+        "duration": 1800,
+        "category_name": "تقنية",
+        "source": "local"
       }
     ],
     "count": 1
   }
 }
 ```
+
+## 🔗 External Source Integration
+
+### iTunes Search Integration
+
+The system automatically searches iTunes when:
+1. Local search returns no results
+2. `external=true` parameter is provided
+3. User requests import with `import=true`
+
+**Search Flow:**
+1. Search local database first
+2. If no results and `external=true`, search iTunes API
+3. If `import=true`, automatically import iTunes results to local database
+4. Return combined or imported results
+
+## 📊 Error Responses
+
+### Standard Error Format
+```json
+{
+  "error": "Error message description"
+}
+```
+
+### HTTP Status Codes
+- `200 OK`: Successful request
+- `201 Created`: Resource created successfully
+- `204 No Content`: Successful deletion
+- `400 Bad Request`: Invalid request format or parameters
+- `404 Not Found`: Resource not found
+- `405 Method Not Allowed`: HTTP method not supported
+- `500 Internal Server Error`: Server error
 
 ## 🏗️ Architecture
 
@@ -246,63 +407,24 @@ gomania/
 │   └── ...
 ├── internal/
 │   ├── database/        # SQLC generated code
-│   ├── service/         # Business logic
-│   │   └── program.go   # Program service
-│   └── sources/         # External sources
-│       ├── client.go    # Interface
-│       ├── manager.go   # Source manager
-│       └── itunes/      # iTunes client
+│   └── service/         # Business logic
+│       └── program.go   # Program & category service
 ├── data/sql/
 │   ├── migrations/      # Database migrations
-│   └── queries/         # SQL queries
+│   ├── queries/         # SQL queries
+│   └── seed.sql         # Sample data
 └── docker-compose.yaml  # Database setup
 ```
 
 ### Database Schema
 
 #### Core Tables
-- `programs` - Podcast programs
-- `episodes` - Individual episodes  
-- `categories` - Program categories
-- `external_sources` - External source tracking
-- `users` - CMS users
-- `tags` - Flexible tagging
+- `programs` - Podcast programs with essential fields
+- `categories` - Simple categories
+- `users` - Basic CMS authentication
 
 #### Relationships
-- Programs → Episodes (1:many)
-- Programs → Categories (many:1)  
-- Programs ↔ External Sources (1:many)
-- Programs ↔ Tags (many:many)
-
-## 🔌 External Sources
-
-### Current Integrations
-- **iTunes API**: Podcast search and import functionality
-
-### Adding New Sources
-
-The system is designed to support multiple external sources. To add a new source:
-
-1. **Implement the Client Interface:**
-```go
-// internal/sources/spotify/client.go
-type SpotifyClient struct{}
-
-func (s *SpotifyClient) SearchPodcasts(term string, limit int) ([]sources.Podcast, error) {
-    // Your implementation here
-    return podcasts, nil
-}
-
-func (s *SpotifyClient) GetSourceName() string {
-    return "spotify"
-}
-```
-
-2. **Register the Client:**
-```go
-// In internal/service/program.go NewProgramService function
-sourcesManager.RegisterClient(&spotify.SpotifyClient{})
-```
+- Programs → Categories (many:1)
 
 ## 📝 Configuration
 
@@ -316,10 +438,25 @@ sourcesManager.RegisterClient(&spotify.SpotifyClient{})
 go run cmd/api/*.go \
   -port=8080 \
   -env=production \
-  -cors-trusted-origins="https://mydomain.com https://anotherdomain.com"
+  -cors-trusted-origins="https://mydomain.com"
 ```
 
 ## 🧪 Testing
+
+### Database Commands
+```bash
+# Initialize database (migrations + sample data)
+make db-init
+
+# Reset database completely
+make db-reset
+
+# Run migrations only
+make db-migrate
+
+# Load sample data only
+make db-seed
+```
 
 ### Manual Testing
 ```bash
@@ -332,21 +469,54 @@ curl http://localhost:4000/v1/programs
 # Search
 curl "http://localhost:4000/v1/programs?q=تقنية"
 
-# Create program (CMS)
+# Search with external sources
+curl "http://localhost:4000/v1/programs?q=technology&external=true"
+
+# List categories
+curl http://localhost:4000/v1/cms/categories
+
+# Create category
+curl -X POST http://localhost:4000/v1/cms/categories \
+  -H "Content-Type: application/json" \
+  -d '{"name":"تقنية"}'
+
+# Create program
 curl -X POST http://localhost:4000/v1/cms/programs \
   -H "Content-Type: application/json" \
-  -d '{"title":"برنامج جديد","description":"وصف","category":"تقنية"}'
+  -d '{
+    "title":"برنامج جديد",
+    "description":"وصف البرنامج",
+    "category_id":"550e8400-e29b-41d4-a716-446655440001",
+    "language":"ar",
+    "duration":1800
+  }'
 ```
 
-## 📊 Logging
+## 📊 Sample Data
 
-The system uses structured logging with `slog`:
+The system includes sample Arabic categories and programs:
 
-```
-level=INFO msg="Searching programs" query=تقنية external=false found=2
-level=INFO msg="Creating new program" title="My Podcast"
-level=INFO msg="Program created successfully" id=abc123...
-level=ERROR msg="Failed to create program" title="Bad Program" error="validation failed"
+### Categories
+- تقنية (Technology)
+- تعليم (Education)
+- تسلية (Entertainment)
+- أخبار (News)
+- رياضة (Sports)
+- صحة (Health)
+- تاريخ (History)
+- فنون (Arts)
+
+### Programs
+- Arabic tech podcasts
+- Educational content
+- Entertainment shows
+- News programs
+
+Load sample data with:
+```bash
+make db-seed
+# OR
+./scripts/init_db.sh
 ```
 
 ## 🚀 Deployment
@@ -367,6 +537,127 @@ docker compose up -d
 - Use environment variables for secrets
 - Set up health checks and monitoring
 
+## 🔗 API Client Examples
+
+### JavaScript/Node.js
+```javascript
+// Search programs
+const searchPrograms = async (query) => {
+  const response = await fetch(`http://localhost:4000/v1/programs?q=${encodeURIComponent(query)}`);
+  const data = await response.json();
+  return data.search ? data.search.results : data.programs;
+};
+
+// Usage
+const programs = await searchPrograms('تقنية');
+console.log(programs);
+
+// Create category first
+const createCategory = async (name) => {
+  const response = await fetch('http://localhost:4000/v1/cms/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+// Create program
+const createProgram = async (programData) => {
+  const response = await fetch('http://localhost:4000/v1/cms/programs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(programData)
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return await response.json();
+};
+
+// Usage example
+const categoryData = await createCategory('تقنية');
+const newProgram = await createProgram({
+  title: 'برنامج جديد',
+  description: 'وصف البرنامج',
+  category_id: categoryData.category.id,
+  language: 'ar',
+  duration: 1800
+});
+```
+
+### Python Examples
+
+```python
+import requests
+
+def search_programs(query=None, external=False, import_results=False):
+    url = "http://localhost:4000/v1/programs"
+    params = {}
+
+    if query:
+        params['q'] = query
+    if external:
+        params['external'] = 'true'
+    if import_results:
+        params['import'] = 'true'
+
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+
+    data = response.json()
+    return data.get('search', {}).get('results', data.get('programs', []))
+
+# Usage
+programs = search_programs('تقنية')
+external_programs = search_programs('podcast', external=True, import_results=True)
+
+def create_program(title, description=None, category_id=None, language='ar', duration=None):
+    url = "http://localhost:4000/v1/cms/programs"
+    data = {
+        'title': title,
+        'language': language
+    }
+
+    if description:
+        data['description'] = description
+    if category_id:
+        data['category_id'] = category_id
+    if duration:
+        data['duration'] = duration
+
+    response = requests.post(url, json=data)
+    response.raise_for_status()
+
+    return response.json()
+
+# Create a category first
+def create_category(name):
+    url = "http://localhost:4000/v1/cms/categories"
+    data = {'name': name}
+
+    response = requests.post(url, json=data)
+    response.raise_for_status()
+
+    return response.json()
+
+# Usage
+category = create_category('تقنية جديدة')
+program = create_program(
+    title='برنامج جديد',
+    description='وصف البرنامج',
+    category_id=category['category']['id'],
+    duration=1800
+)
+```
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -377,56 +668,4 @@ docker compose up -d
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🔗 API Client Examples
-
-### JavaScript/Node.js
-```javascript
-// Search programs
-const response = await fetch('http://localhost:4000/v1/programs?q=تقنية');
-const data = await response.json();
-console.log(data.programs);
-
-// Create program
-const program = await fetch('http://localhost:4000/v1/cms/programs', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    title: 'برنامج جديد',
-    description: 'وصف البرنامج',
-    category: 'تقنية'
-  })
-});
-```
-
-### cURL Examples
-```bash
-# Get all programs
-curl -X GET "http://localhost:4000/v1/programs"
-
-# Search with external sources and auto-import
-curl -X GET "http://localhost:4000/v1/programs?q=podcast&external=true&import=true"
-
-# Create new program
-curl -X POST "http://localhost:4000/v1/cms/programs" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "title": "برنامج جديد",
-       "description": "وصف مفصل للبرنامج",
-       "category": "تقنية",
-       "language": "ar",
-       "duration": 1800
-     }'
-
-# Update existing program
-curl -X PUT "http://localhost:4000/v1/cms/programs/{id}" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "title": "برنامج محدث",
-       "description": "وصف محدث"
-     }'
-
-# Delete program
-curl -X DELETE "http://localhost:4000/v1/cms/programs/{id}"
-```
+This project is licensed under the Apache 2 License - see the LICENSE file for details.
