@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/khatibomar/gomania/internal/service"
+	"github.com/khatibomar/gomania/internal/sources"
+	"github.com/khatibomar/gomania/internal/sources/itunes"
 )
 
 type config struct {
@@ -27,6 +29,7 @@ type application struct {
 	logger         *slog.Logger
 	db             *pgxpool.Pool
 	programService *service.ProgramService
+	sourcesManager *sources.Manager
 }
 
 func parseFlags(cfg *config) {
@@ -62,12 +65,17 @@ func main() {
 
 	programService := service.NewProgramService(pool, logger)
 
+	sourcesManager := sources.NewManager()
+	itunesClient := itunes.NewClient()
+	sourcesManager.RegisterClient(itunesClient)
+
 	app := &application{
 		ctx:            ctx,
 		config:         cfg,
 		logger:         logger,
 		db:             pool,
 		programService: programService,
+		sourcesManager: sourcesManager,
 	}
 
 	if err = app.serve(); err != nil {

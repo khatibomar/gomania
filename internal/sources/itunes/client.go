@@ -114,7 +114,7 @@ func (c *Client) getDescription(result Result) string {
 	if result.ShortDescription != "" {
 		return result.ShortDescription
 	}
-	return "Podcast by %s" + result.ArtistName
+	return "Podcast by " + result.ArtistName
 }
 
 func (c *Client) parsePublishedAt(result Result) *time.Time {

@@ -27,5 +27,9 @@ func (app *application) routes() http.Handler {
 	// discovery
 	mux.HandleFunc("GET /v1/programs", app.discoveryHandler)
 
+	// external sources
+	mux.HandleFunc("GET /v1/external/search", app.searchExternalSourcesHandler)
+	mux.HandleFunc("GET /v1/external/sources", app.listExternalSourcesHandler)
+
 	return app.logRequest(app.recoverPanic(app.enableCORS(mux)))
 }

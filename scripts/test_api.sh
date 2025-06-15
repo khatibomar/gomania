@@ -134,6 +134,15 @@ if [ -n "$CATEGORY_ID" ] && [ "$CATEGORY_ID" != "null" ]; then
         # Test empty search (should return all)
         test_endpoint "GET" "/v1/programs?q=" "Discovery - Empty Search"
 
+        # Test external sources
+        test_endpoint "GET" "/v1/external/sources" "List Available External Sources"
+
+        # Test external search with iTunes
+        test_endpoint "GET" "/v1/external/search?source=itunes&q=technology&limit=5" "Search iTunes Podcasts"
+
+        # Test search with no local results (should trigger external search)
+        test_endpoint "GET" "/v1/programs?q=nonexistentterm12345" "Discovery - Search (should trigger external fallback)"
+
         # Test delete program
         test_endpoint "DELETE" "/v1/cms/programs/${PROGRAM_ID}" "Delete Program"
 
@@ -149,6 +158,9 @@ fi
 
 # Test Arabic content search
 test_endpoint "GET" "/v1/programs?q=تقنية" "Search Arabic Content"
+
+# Test iTunes specific search
+test_endpoint "GET" "/v1/external/search?source=itunes&q=podcast&limit=3" "iTunes Direct Search"
 
 # Test non-existent endpoint
 echo -e "${BLUE}Testing: Non-existent Endpoint (should return 404)${NC}"
@@ -171,11 +183,15 @@ echo -e "${GREEN}   ✅ Program management${NC}"
 echo -e "${GREEN}   ✅ Discovery API${NC}"
 echo -e "${GREEN}   ✅ Search functionality${NC}"
 echo -e "${GREEN}   ✅ Arabic content support${NC}"
+echo -e "${GREEN}   ✅ External sources integration${NC}"
+echo -e "${GREEN}   ✅ iTunes API integration${NC}"
 echo ""
 echo -e "${BLUE}🔗 Available endpoints:${NC}"
 echo -e "${YELLOW}   GET    /v1/healthcheck${NC}"
 echo -e "${YELLOW}   GET    /v1/programs${NC}"
 echo -e "${YELLOW}   GET    /v1/programs?q=search${NC}"
+echo -e "${YELLOW}   GET    /v1/external/sources${NC}"
+echo -e "${YELLOW}   GET    /v1/external/search?source=SOURCE&q=QUERY${NC}"
 echo -e "${YELLOW}   GET    /v1/cms/categories${NC}"
 echo -e "${YELLOW}   POST   /v1/cms/categories${NC}"
 echo -e "${YELLOW}   GET    /v1/cms/categories/{id}/programs${NC}"

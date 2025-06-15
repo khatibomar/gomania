@@ -224,17 +224,46 @@ GET /v1/programs
 GET /v1/programs?q=تقنية
 ```
 
-#### Search with External Sources
+#### Search with Automatic External Fallback
 ```http
-GET /v1/programs?q=technology&external=true
+GET /v1/programs?q=technology
 ```
 
-#### Search and Auto-Import
-```http
-GET /v1/programs?q=podcast&external=true&import=true
+When no local results are found, the system automatically searches external sources.
+
+**Search Response with External Fallback:**
+```json
+{
+  "search": {
+    "query": "technology",
+    "results": [],
+    "count": 0,
+    "sources": {
+      "local": {
+        "count": 0
+      },
+      "external": {
+        "itunes": [
+          {
+            "id": "12345",
+            "title": "Tech Talk Podcast",
+            "description": "Latest technology discussions",
+            "host": "John Doe",
+            "genre": "Technology",
+            "country": "US",
+            "duration": 3600,
+            "published_at": "2024-01-15T10:00:00Z",
+            "artwork_url": "https://example.com/artwork.jpg"
+          }
+        ]
+      }
+    },
+    "external_count": 1
+  }
+}
 ```
 
-**Search Response:**
+**Local Search Response:**
 ```json
 {
   "search": {
@@ -250,27 +279,90 @@ GET /v1/programs?q=podcast&external=true&import=true
         "source": "local"
       }
     ],
-    "count": 1
+    "count": 1,
+    "sources": {
+      "local": {
+        "count": 1
+      }
+    }
   }
 }
 ```
 
 ---
 
-## 🔗 External Source Integration
+## 🔗 External Sources API
+
+### List Available External Sources
+**GET** `/v1/external/sources`
+
+Get a list of all available external sources.
+
+**Response:**
+```json
+{
+  "external_sources": {
+    "sources": ["itunes"],
+    "count": 1
+  }
+}
+```
+
+### Search Specific External Source
+**GET** `/v1/external/search`
+
+Search a specific external source directly.
+
+**Query Parameters:**
+- `source` (string, required): Source name (e.g., "itunes")
+- `q` (string, required): Search query
+- `limit` (integer, optional): Maximum results to return (default: 10)
+
+**Examples:**
+
+#### Search iTunes
+```http
+GET /v1/external/search?source=itunes&q=technology&limit=5
+```
+
+**Response:**
+```json
+{
+  "external_search": {
+    "query": "technology",
+    "source": "itunes",
+    "results": [
+      {
+        "id": "12345",
+        "title": "Tech Talk Podcast",
+        "description": "Latest technology discussions and trends",
+        "host": "John Doe",
+        "genre": "Technology",
+        "country": "US",
+        "duration": 3600,
+        "published_at": "2024-01-15T10:00:00Z",
+        "artwork_url": "https://example.com/artwork.jpg"
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing required parameters
+- `500 Internal Server Error`: External source unavailable
 
 ### iTunes Search Integration
 
-The system automatically searches iTunes when:
+The discovery endpoint (`/v1/programs`) automatically searches iTunes when:
 1. Local search returns no results
-2. `external=true` parameter is provided
-3. User requests import with `import=true`
+2. Search query is provided with `?q=` parameter
 
-**Search Flow:**
+**Automatic Search Flow:**
 1. Search local database first
-2. If no results and `external=true`, search iTunes API
-3. If `import=true`, automatically import iTunes results to local database
-4. Return combined or imported results
+2. If no local results found, automatically search iTunes
+3. Return combined response with both local and external results
 
 ---
 
@@ -349,9 +441,14 @@ curl -X POST "http://localhost:4000/v1/cms/programs" \
 curl -X GET "http://localhost:4000/v1/programs?q=تقنية"
 ```
 
-#### Search with iTunes Integration
+#### Search External Sources Directly
 ```bash
-curl -X GET "http://localhost:4000/v1/programs?q=technology&external=true&import=true"
+curl -X GET "http://localhost:4000/v1/external/search?source=itunes&q=technology&limit=5"
+```
+
+#### List Available External Sources
+```bash
+curl -X GET "http://localhost:4000/v1/external/sources"
 ```
 
 #### Update Program
@@ -394,11 +491,11 @@ const createProgram = async (programData) => {
     },
     body: JSON.stringify(programData)
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   return await response.json();
 };
 
@@ -408,66 +505,6 @@ const newProgram = await createProgram({
   description: 'وصف البرنامج',
   category: 'تقنية'
 });
-```
-
-### Python Examples
-
-#### Search and List Programs
-```python
-import requests
-
-def search_programs(query=None, external=False, import_results=False):
-    url = "http://localhost:4000/v1/programs"
-    params = {}
-    
-    if query:
-        params['q'] = query
-    if external:
-        params['external'] = 'true'
-    if import_results:
-        params['import'] = 'true'
-    
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    
-    data = response.json()
-    return data.get('search', {}).get('results', data.get('programs', []))
-
-# Usage
-programs = search_programs('تقنية')
-external_programs = search_programs('podcast', external=True, import_results=True)
-```
-
-#### Create Program
-```python
-import requests
-
-def create_program(title, description=None, category=None, language='ar', duration=None):
-    url = "http://localhost:4000/v1/cms/programs"
-    data = {
-        'title': title,
-        'language': language
-    }
-    
-    if description:
-        data['description'] = description
-    if category:
-        data['category'] = category
-    if duration:
-        data['duration'] = duration
-    
-    response = requests.post(url, json=data)
-    response.raise_for_status()
-    
-    return response.json()
-
-# Usage
-program = create_program(
-    title='برنامج جديد',
-    description='وصف البرنامج',
-    category='تقنية',
-    duration=1800
-)
 ```
 
 ---
@@ -485,11 +522,113 @@ Currently, no rate limiting is implemented. This will be added in future version
 ### Pagination
 Currently, all endpoints return complete result sets. Pagination will be added for large datasets in future versions.
 
+### Categories
+
+#### List All Categories
+**GET** `/v1/cms/categories`
+
+Retrieve all categories in the system.
+
+**Response:**
+```json
+{
+  "categories": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "تقنية",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### Create Category
+**POST** `/v1/cms/categories`
+
+Create a new category.
+
+**Request Body:**
+```json
+{
+  "name": "تقنية"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "category": {
+    "id": "generated-uuid",
+    "name": "تقنية",
+    "created_at": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `409 Conflict`: Category with this name already exists
+
+#### Get Programs by Category
+**GET** `/v1/cms/categories/{id}/programs`
+
+Retrieve all programs in a specific category.
+
+**Parameters:**
+- `id` (path, required): Category UUID
+
+**Response:**
+```json
+{
+  "programs": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440001",
+      "title": "تقنية بودكاست",
+      "description": "برنامج أسبوعي يناقش أحدث التطورات",
+      "category": "تقنية",
+      "language": "ar",
+      "duration": 1800,
+      "source": "local"
+    }
+  ]
+}
+```
+
+---
+
+## 📋 Complete API Endpoints Summary
+
+### Health & Monitoring
+- `GET /v1/healthcheck` - Health check
+- `GET /debug/vars` - Debug information
+
+### Discovery API (Public)
+- `GET /v1/programs` - Browse/search programs with automatic external fallback
+- `GET /v1/programs?q={query}` - Search programs (auto-searches iTunes if no local results)
+
+### External Sources
+- `GET /v1/external/sources` - List available external sources
+- `GET /v1/external/search?source={source}&q={query}&limit={limit}` - Search specific external source
+
+### CMS - Programs
+- `GET /v1/cms/programs` - List all programs
+- `POST /v1/cms/programs` - Create new program
+- `GET /v1/cms/programs/{id}` - Get single program
+- `PUT /v1/cms/programs/{id}` - Update program
+- `DELETE /v1/cms/programs/{id}` - Delete program
+
+### CMS - Categories
+- `GET /v1/cms/categories` - List all categories
+- `POST /v1/cms/categories` - Create new category
+- `GET /v1/cms/categories/{id}/programs` - Get programs by category
+
+---
+
 ### Future Endpoints
 The following endpoints are planned for future releases:
 - Episode management (`/v1/cms/episodes/*`)
-- Category management (`/v1/cms/categories/*`)
 - User management (`/v1/cms/users/*`)
 - Tag management (`/v1/cms/tags/*`)
 - Direct iTunes import (`/v1/cms/import/itunes/{id}`)
 - Analytics and statistics (`/v1/cms/analytics/*`)
+- Bulk import from external sources (`/v1/cms/import/bulk`)
+- Subscription management (`/v1/cms/subscriptions/*`)
