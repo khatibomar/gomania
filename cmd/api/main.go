@@ -55,7 +55,17 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	var logger *slog.Logger
+
+	if cfg.env == "development" {
+		lvl := new(slog.LevelVar)
+		lvl.Set(slog.LevelDebug)
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: lvl,
+		}))
+	} else {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	}
 
 	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/khatibomar/gomania/internal/cache"
 	"github.com/khatibomar/gomania/internal/database"
 )
 
@@ -35,6 +37,7 @@ type ProgramService struct {
 	q         *database.Queries
 	logger    *slog.Logger
 	validator *validator.Validate
+	cache     cache.Cache
 }
 
 type CreateProgramRequest struct {
@@ -63,11 +66,16 @@ type CategoryRequest struct {
 }
 
 func NewProgramService(db *pgxpool.Pool, logger *slog.Logger) *ProgramService {
+	return NewProgramServiceWithCache(db, logger, 15*time.Minute)
+}
+
+func NewProgramServiceWithCache(db *pgxpool.Pool, logger *slog.Logger, cacheTTL time.Duration) *ProgramService {
 	return &ProgramService{
 		db:        db,
 		q:         database.New(db),
 		logger:    logger,
 		validator: validator.New(),
+		cache:     cache.NewMemoryCache(cacheTTL),
 	}
 }
 
@@ -98,11 +106,26 @@ func (s *ProgramService) CreateProgram(ctx context.Context, req CreateProgramReq
 		return nil, fmt.Errorf("failed to create program: %w", err)
 	}
 
+	// Invalidate relevant cache entries after successful creation
+	s.cache.Delete(cache.ProgramsListKey())
+	s.cache.InvalidatePattern(cache.KeyPatternSearch)
+	s.cache.Delete(cache.ProgramsCategoryKey(req.CategoryID.String()))
+
 	s.logger.Info("Program created successfully", "title", req.Title, "id", program.ID)
 	return &program, nil
 }
 
 func (s *ProgramService) GetProgram(ctx context.Context, id uuid.UUID) (*database.GetProgramRow, error) {
+	cacheKey := cache.ProgramKey(id.String())
+
+	// Check cache first
+	if cached, found := s.cache.Get(cacheKey); found {
+		s.logger.Debug("Program found in cache", "id", id)
+		if program, ok := cached.(*database.GetProgramRow); ok {
+			return program, nil
+		}
+	}
+
 	pgUUID := pgtype.UUID{Bytes: id, Valid: true}
 	program, err := s.q.GetProgram(ctx, pgUUID)
 	if err != nil {
@@ -115,6 +138,11 @@ func (s *ProgramService) GetProgram(ctx context.Context, id uuid.UUID) (*databas
 		s.logger.Error("Failed to get program", "id", id, "error", err)
 		return nil, fmt.Errorf("failed to get program: %w", err)
 	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, &program)
+	s.logger.Debug("Program cached", "id", id)
+
 	return &program, nil
 }
 
@@ -153,6 +181,12 @@ func (s *ProgramService) UpdateProgram(ctx context.Context, req UpdateProgramReq
 		return nil, fmt.Errorf("failed to update program: %w", err)
 	}
 
+	// Invalidate relevant cache entries after successful update
+	s.cache.Delete(cache.ProgramKey(req.ID.String()))
+	s.cache.Delete(cache.ProgramsListKey())
+	s.cache.InvalidatePattern("programs:search:*")
+	s.cache.InvalidatePattern("programs:category:*")
+
 	s.logger.Info("Program updated successfully", "id", program.ID, "title", program.Title)
 	return &program, nil
 }
@@ -170,17 +204,38 @@ func (s *ProgramService) DeleteProgram(ctx context.Context, id uuid.UUID) error 
 		return fmt.Errorf("failed to delete program: %w", err)
 	}
 
+	// Invalidate relevant cache entries after successful deletion
+	s.cache.Delete(cache.ProgramKey(id.String()))
+	s.cache.Delete(cache.ProgramsListKey())
+	s.cache.InvalidatePattern("programs:search:*")
+	s.cache.InvalidatePattern("programs:category:*")
+
 	s.logger.Info("Program deleted successfully", "id", id)
 	return nil
 }
 
 func (s *ProgramService) ListPrograms(ctx context.Context) ([]database.ListProgramsRow, error) {
+	cacheKey := cache.ProgramsListKey()
+
+	// Check cache first
+	if cached, found := s.cache.Get(cacheKey); found {
+		s.logger.Debug("Programs list found in cache")
+		if programs, ok := cached.([]database.ListProgramsRow); ok {
+			return programs, nil
+		}
+	}
+
 	s.logger.Info("Listing all programs")
 	programs, err := s.q.ListPrograms(ctx)
 	if err != nil {
 		s.logger.Error("Failed to list programs", "error", err)
 		return nil, fmt.Errorf("failed to list programs: %w", err)
 	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, programs)
+	s.logger.Debug("Programs list cached")
+
 	s.logger.Info("Successfully listed programs", "count", len(programs))
 	return programs, nil
 }
@@ -191,6 +246,16 @@ func (s *ProgramService) SearchPrograms(ctx context.Context, req SearchRequest) 
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
+	cacheKey := cache.ProgramsSearchKey(req.Query)
+
+	// Check cache first
+	if cached, found := s.cache.Get(cacheKey); found {
+		s.logger.Debug("Search results found in cache", "query", req.Query)
+		if programs, ok := cached.([]database.SearchProgramsRow); ok {
+			return programs, nil
+		}
+	}
+
 	s.logger.Info("Searching programs", "query", req.Query)
 
 	programs, err := s.q.SearchPrograms(ctx, pgtype.Text{String: req.Query, Valid: true})
@@ -199,11 +264,25 @@ func (s *ProgramService) SearchPrograms(ctx context.Context, req SearchRequest) 
 		return nil, fmt.Errorf("failed to search programs: %w", err)
 	}
 
+	// Cache the result
+	s.cache.Set(cacheKey, programs)
+	s.logger.Debug("Search results cached", "query", req.Query)
+
 	s.logger.Info("Search completed", "query", req.Query, "found", len(programs))
 	return programs, nil
 }
 
 func (s *ProgramService) GetProgramsByCategory(ctx context.Context, categoryID uuid.UUID) ([]database.GetProgramsByCategoryRow, error) {
+	cacheKey := cache.ProgramsCategoryKey(categoryID.String())
+
+	// Check cache first
+	if cached, found := s.cache.Get(cacheKey); found {
+		s.logger.Debug("Programs by category found in cache", "category_id", categoryID)
+		if programs, ok := cached.([]database.GetProgramsByCategoryRow); ok {
+			return programs, nil
+		}
+	}
+
 	pgUUID := pgtype.UUID{Bytes: categoryID, Valid: true}
 	s.logger.Info("Getting programs by category", "category_id", categoryID)
 	programs, err := s.q.GetProgramsByCategory(ctx, pgUUID)
@@ -211,6 +290,11 @@ func (s *ProgramService) GetProgramsByCategory(ctx context.Context, categoryID u
 		s.logger.Error("Failed to get programs by category", "category_id", categoryID, "error", err)
 		return nil, fmt.Errorf("failed to get programs by category: %w", err)
 	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, programs)
+	s.logger.Debug("Programs by category cached", "category_id", categoryID)
+
 	s.logger.Info("Successfully fetched programs by category", "category_id", categoryID, "count", len(programs))
 	return programs, nil
 }
@@ -236,17 +320,68 @@ func (s *ProgramService) CreateCategory(ctx context.Context, req CategoryRequest
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
 
+	// Invalidate categories cache after successful creation
+	s.cache.Delete(cache.CategoriesListKey())
+
 	s.logger.Info("Category created successfully", "name", req.Name, "id", category.ID)
 	return &category, nil
 }
 
 func (s *ProgramService) GetCategories(ctx context.Context) ([]database.GetCategoriesRow, error) {
+	cacheKey := cache.CategoriesListKey()
+
+	// Check cache first
+	if cached, found := s.cache.Get(cacheKey); found {
+		s.logger.Debug("Categories found in cache")
+		if categories, ok := cached.([]database.GetCategoriesRow); ok {
+			return categories, nil
+		}
+	}
+
 	s.logger.Info("Getting all categories")
 	categories, err := s.q.GetCategories(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get categories", "error", err)
 		return nil, fmt.Errorf("failed to get categories: %w", err)
 	}
+
+	// Cache the result
+	s.cache.Set(cacheKey, categories)
+	s.logger.Debug("Categories cached")
+
 	s.logger.Info("Successfully fetched categories", "count", len(categories))
 	return categories, nil
+}
+
+// GetCacheStats returns current cache statistics
+func (s *ProgramService) GetCacheStats() cache.Stats {
+	return cache.Stats{
+		TotalItems: s.cache.Size(),
+		TTL:        s.cache.TTL(),
+	}
+}
+
+// ClearCache clears all cache entries
+func (s *ProgramService) ClearCache() {
+	s.logger.Info("Clearing all cache entries")
+	s.cache.Clear()
+}
+
+// InvalidateProgramCache invalidates all program-related cache entries
+func (s *ProgramService) InvalidateProgramCache() {
+	s.logger.Info("Invalidating program cache")
+	s.cache.InvalidatePattern(cache.KeyPatternPrograms)
+	s.cache.InvalidatePattern("programs:*")
+}
+
+// InvalidateCategoryCache invalidates all category-related cache entries
+func (s *ProgramService) InvalidateCategoryCache() {
+	s.logger.Info("Invalidating category cache")
+	s.cache.InvalidatePattern(cache.KeyPatternCategory)
+}
+
+// SetCacheTTL updates the cache TTL (affects new entries only)
+func (s *ProgramService) SetCacheTTL(ttl time.Duration) {
+	s.cache.SetTTL(ttl)
+	s.logger.Info("Cache TTL updated", "new_ttl", ttl)
 }
