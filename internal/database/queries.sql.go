@@ -7,15 +7,267 @@ package database
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const dummy = `-- name: Dummy :one
-SELECT 1
+const createExternalSource = `-- name: CreateExternalSource :one
+INSERT INTO external_sources (program_id, source_name, external_id)
+VALUES ($1, $2, $3)
+RETURNING id, program_id, source_name, external_id
 `
 
-func (q *Queries) Dummy(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, dummy)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
+type CreateExternalSourceParams struct {
+	ProgramID  pgtype.UUID `db:"program_id"`
+	SourceName string      `db:"source_name"`
+	ExternalID string      `db:"external_id"`
+}
+
+func (q *Queries) CreateExternalSource(ctx context.Context, arg CreateExternalSourceParams) (ExternalSource, error) {
+	row := q.db.QueryRow(ctx, createExternalSource, arg.ProgramID, arg.SourceName, arg.ExternalID)
+	var i ExternalSource
+	err := row.Scan(
+		&i.ID,
+		&i.ProgramID,
+		&i.SourceName,
+		&i.ExternalID,
+	)
+	return i, err
+}
+
+const createProgram = `-- name: CreateProgram :one
+INSERT INTO programs (title, description, category, language, duration, published_at, source)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, title, description, category, language, duration, published_at, source
+`
+
+type CreateProgramParams struct {
+	Title       string           `db:"title"`
+	Description pgtype.Text      `db:"description"`
+	Category    pgtype.Text      `db:"category"`
+	Language    pgtype.Text      `db:"language"`
+	Duration    pgtype.Int4      `db:"duration"`
+	PublishedAt pgtype.Timestamp `db:"published_at"`
+	Source      string           `db:"source"`
+}
+
+func (q *Queries) CreateProgram(ctx context.Context, arg CreateProgramParams) (Program, error) {
+	row := q.db.QueryRow(ctx, createProgram,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.Language,
+		arg.Duration,
+		arg.PublishedAt,
+		arg.Source,
+	)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.Language,
+		&i.Duration,
+		&i.PublishedAt,
+		&i.Source,
+	)
+	return i, err
+}
+
+const deleteProgram = `-- name: DeleteProgram :exec
+DELETE FROM programs WHERE id = $1
+`
+
+func (q *Queries) DeleteProgram(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteProgram, id)
+	return err
+}
+
+const getExternalSources = `-- name: GetExternalSources :many
+SELECT id, program_id, source_name, external_id FROM external_sources WHERE program_id = $1
+`
+
+func (q *Queries) GetExternalSources(ctx context.Context, programID pgtype.UUID) ([]ExternalSource, error) {
+	rows, err := q.db.Query(ctx, getExternalSources, programID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExternalSource
+	for rows.Next() {
+		var i ExternalSource
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProgramID,
+			&i.SourceName,
+			&i.ExternalID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getProgram = `-- name: GetProgram :one
+SELECT id, title, description, category, language, duration, published_at, source FROM programs WHERE id = $1
+`
+
+func (q *Queries) GetProgram(ctx context.Context, id pgtype.UUID) (Program, error) {
+	row := q.db.QueryRow(ctx, getProgram, id)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.Language,
+		&i.Duration,
+		&i.PublishedAt,
+		&i.Source,
+	)
+	return i, err
+}
+
+const getProgramByExternalID = `-- name: GetProgramByExternalID :one
+SELECT p.id, p.title, p.description, p.category, p.language, p.duration, p.published_at, p.source FROM programs p
+JOIN external_sources es ON p.id = es.program_id
+WHERE es.source_name = $1 AND es.external_id = $2
+`
+
+type GetProgramByExternalIDParams struct {
+	SourceName string `db:"source_name"`
+	ExternalID string `db:"external_id"`
+}
+
+func (q *Queries) GetProgramByExternalID(ctx context.Context, arg GetProgramByExternalIDParams) (Program, error) {
+	row := q.db.QueryRow(ctx, getProgramByExternalID, arg.SourceName, arg.ExternalID)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.Language,
+		&i.Duration,
+		&i.PublishedAt,
+		&i.Source,
+	)
+	return i, err
+}
+
+const listPrograms = `-- name: ListPrograms :many
+SELECT id, title, description, category, language, duration, published_at, source FROM programs
+ORDER BY published_at DESC
+`
+
+func (q *Queries) ListPrograms(ctx context.Context) ([]Program, error) {
+	rows, err := q.db.Query(ctx, listPrograms)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Program
+	for rows.Next() {
+		var i Program
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Language,
+			&i.Duration,
+			&i.PublishedAt,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchPrograms = `-- name: SearchPrograms :many
+SELECT id, title, description, category, language, duration, published_at, source FROM programs
+WHERE title ILIKE '%' || $1 || '%'
+   OR description ILIKE '%' || $1 || '%'
+   OR category ILIKE '%' || $1 || '%'
+ORDER BY published_at DESC
+`
+
+func (q *Queries) SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]Program, error) {
+	rows, err := q.db.Query(ctx, searchPrograms, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Program
+	for rows.Next() {
+		var i Program
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.Language,
+			&i.Duration,
+			&i.PublishedAt,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateProgram = `-- name: UpdateProgram :one
+UPDATE programs
+SET title = $2, description = $3, category = $4, language = $5, duration = $6, published_at = $7
+WHERE id = $1
+RETURNING id, title, description, category, language, duration, published_at, source
+`
+
+type UpdateProgramParams struct {
+	ID          pgtype.UUID      `db:"id"`
+	Title       string           `db:"title"`
+	Description pgtype.Text      `db:"description"`
+	Category    pgtype.Text      `db:"category"`
+	Language    pgtype.Text      `db:"language"`
+	Duration    pgtype.Int4      `db:"duration"`
+	PublishedAt pgtype.Timestamp `db:"published_at"`
+}
+
+func (q *Queries) UpdateProgram(ctx context.Context, arg UpdateProgramParams) (Program, error) {
+	row := q.db.QueryRow(ctx, updateProgram,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.Language,
+		arg.Duration,
+		arg.PublishedAt,
+	)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.Language,
+		&i.Duration,
+		&i.PublishedAt,
+		&i.Source,
+	)
+	return i, err
 }

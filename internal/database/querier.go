@@ -6,10 +6,20 @@ package database
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	Dummy(ctx context.Context) (int32, error)
+	CreateExternalSource(ctx context.Context, arg CreateExternalSourceParams) (ExternalSource, error)
+	CreateProgram(ctx context.Context, arg CreateProgramParams) (Program, error)
+	DeleteProgram(ctx context.Context, id pgtype.UUID) error
+	GetExternalSources(ctx context.Context, programID pgtype.UUID) ([]ExternalSource, error)
+	GetProgram(ctx context.Context, id pgtype.UUID) (Program, error)
+	GetProgramByExternalID(ctx context.Context, arg GetProgramByExternalIDParams) (Program, error)
+	ListPrograms(ctx context.Context) ([]Program, error)
+	SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]Program, error)
+	UpdateProgram(ctx context.Context, arg UpdateProgramParams) (Program, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/khatibomar/gomania/internal/database"
+	"github.com/khatibomar/gomania/internal/service"
 )
 
 type config struct {
@@ -22,10 +22,11 @@ type config struct {
 }
 
 type application struct {
-	ctx    context.Context
-	config config
-	logger *slog.Logger
-	db     database.Querier
+	ctx            context.Context
+	config         config
+	logger         *slog.Logger
+	db             *pgxpool.Pool
+	programService *service.ProgramService
 }
 
 func parseFlags(cfg *config) {
@@ -59,13 +60,14 @@ func main() {
 	}
 	defer pool.Close()
 
-	db := database.New(pool)
+	programService := service.NewProgramService(pool, logger)
 
 	app := &application{
-		ctx:    ctx,
-		config: cfg,
-		logger: logger,
-		db:     db,
+		ctx:            ctx,
+		config:         cfg,
+		logger:         logger,
+		db:             pool,
+		programService: programService,
 	}
 
 	if err = app.serve(); err != nil {
