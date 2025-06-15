@@ -3,7 +3,6 @@ package cache
 import (
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -24,10 +23,6 @@ type Memory struct {
 	items map[string]*Entry
 	ttl   time.Duration
 	stop  chan struct{}
-	// Metrics
-	hits    int64
-	misses  int64
-	evicted int64
 }
 
 // New creates a new memory cache instance with the specified TTL
@@ -71,16 +66,13 @@ func (c *Memory) Get(key string) (any, bool) {
 		// Double-check after acquiring write lock
 		if entry, exists := c.items[key]; exists && entry.IsExpired() {
 			delete(c.items, key)
-			atomic.AddInt64(&c.evicted, 1)
 		}
 		c.mu.Unlock()
-		atomic.AddInt64(&c.misses, 1)
 		return nil, false
 	}
 
 	data := entry.Data
 	c.mu.RUnlock()
-	atomic.AddInt64(&c.hits, 1)
 	return data, true
 }
 
@@ -143,18 +135,6 @@ func (c *Memory) Keys() []string {
 	return keys
 }
 
-// Metrics returns cache performance metrics
-func (c *Memory) Metrics() (hits, misses, evicted int64) {
-	return atomic.LoadInt64(&c.hits), atomic.LoadInt64(&c.misses), atomic.LoadInt64(&c.evicted)
-}
-
-// ResetMetrics resets all performance counters
-func (c *Memory) ResetMetrics() {
-	atomic.StoreInt64(&c.hits, 0)
-	atomic.StoreInt64(&c.misses, 0)
-	atomic.StoreInt64(&c.evicted, 0)
-}
-
 // Close stops the cleanup goroutine
 func (c *Memory) Close() {
 	close(c.stop)
@@ -169,15 +149,10 @@ func (c *Memory) cleanup() {
 		select {
 		case <-ticker.C:
 			c.mu.Lock()
-			evictedCount := int64(0)
 			for key, entry := range c.items {
 				if entry.IsExpired() {
 					delete(c.items, key)
-					evictedCount++
 				}
-			}
-			if evictedCount > 0 {
-				atomic.AddInt64(&c.evicted, evictedCount)
 			}
 			c.mu.Unlock()
 		case <-c.stop:

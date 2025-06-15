@@ -409,18 +409,6 @@ func (s *ProgramService) GetCategories(ctx context.Context) ([]database.GetCateg
 	return categories, nil
 }
 
-// GetCacheStats returns current cache statistics
-func (s *ProgramService) GetCacheStats() cache.Stats {
-	hits, misses, evicted := s.cache.Metrics()
-	return cache.Stats{
-		TotalItems: s.cache.Size(),
-		TTL:        s.cache.TTL(),
-		Hits:       hits,
-		Misses:     misses,
-		Evicted:    evicted,
-	}
-}
-
 // ClearCache clears all cache entries
 func (s *ProgramService) ClearCache() {
 	s.logger.Info("Clearing all cache entries")

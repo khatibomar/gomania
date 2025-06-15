@@ -82,29 +82,6 @@ func Example_expiration() {
 	// Data expired
 }
 
-func Example_stats() {
-	c := cache.NewMemoryCache(time.Minute)
-	defer c.Close()
-
-	// Add some data
-	for i := range 5 {
-		c.Set(fmt.Sprintf("key:%d", i), fmt.Sprintf("value:%d", i))
-	}
-
-	// Get statistics
-	stats := cache.Stats{
-		TotalItems: c.Size(),
-		TTL:        c.TTL(),
-	}
-
-	fmt.Printf("Items in cache: %d\n", stats.TotalItems)
-	fmt.Printf("TTL: %v\n", stats.TTL)
-
-	// Output:
-	// Items in cache: 5
-	// TTL: 1m0s
-}
-
 func Example_programService() {
 	// This example shows how the cache integrates with a service
 	c := cache.NewMemoryCache(15 * time.Minute)

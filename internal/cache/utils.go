@@ -63,7 +63,7 @@ func NewCacheWrapper(cache Cache, keyPrefix string) *CacheWrapper {
 }
 
 // GetOrSet retrieves a value from cache or sets it using the provider function
-func (cw *CacheWrapper) GetOrSet(key string, provider func() (interface{}, error)) (interface{}, error) {
+func (cw *CacheWrapper) GetOrSet(key string, provider func() (any, error)) (any, error) {
 	// Try to get from cache first
 	if value, found := cw.cache.Get(key); found {
 		return value, nil
@@ -81,25 +81,25 @@ func (cw *CacheWrapper) GetOrSet(key string, provider func() (interface{}, error
 }
 
 // GetByID retrieves an item by ID from cache or uses the provider function
-func (cw *CacheWrapper) GetByID(id string, provider func() (interface{}, error)) (interface{}, error) {
+func (cw *CacheWrapper) GetByID(id string, provider func() (any, error)) (any, error) {
 	key := cw.kb.BuildWithID(id)
 	return cw.GetOrSet(key, provider)
 }
 
 // GetList retrieves a list from cache or uses the provider function
-func (cw *CacheWrapper) GetList(provider func() (interface{}, error)) (interface{}, error) {
+func (cw *CacheWrapper) GetList(provider func() (any, error)) (any, error) {
 	key := cw.kb.BuildList()
 	return cw.GetOrSet(key, provider)
 }
 
 // GetSearch retrieves search results from cache or uses the provider function
-func (cw *CacheWrapper) GetSearch(query string, provider func() (interface{}, error)) (interface{}, error) {
+func (cw *CacheWrapper) GetSearch(query string, provider func() (any, error)) (any, error) {
 	key := cw.kb.BuildSearch(query)
 	return cw.GetOrSet(key, provider)
 }
 
 // GetByCategory retrieves items by category from cache or uses the provider function
-func (cw *CacheWrapper) GetByCategory(categoryID string, provider func() (interface{}, error)) (interface{}, error) {
+func (cw *CacheWrapper) GetByCategory(categoryID string, provider func() (any, error)) (any, error) {
 	key := cw.kb.BuildCategory(categoryID)
 	return cw.GetOrSet(key, provider)
 }
@@ -188,24 +188,6 @@ func (cm *CacheManager) Close() {
 	cm.longCache.Close()
 }
 
-// Stats returns combined statistics for all caches
-func (cm *CacheManager) Stats() map[string]Stats {
-	return map[string]Stats{
-		"default": {
-			TotalItems: cm.defaultCache.Size(),
-			TTL:        cm.defaultCache.TTL(),
-		},
-		"short": {
-			TotalItems: cm.shortCache.Size(),
-			TTL:        cm.shortCache.TTL(),
-		},
-		"long": {
-			TotalItems: cm.longCache.Size(),
-			TTL:        cm.longCache.TTL(),
-		},
-	}
-}
-
 // Common cache key patterns
 const (
 	KeyPatternAll              = "*"
@@ -262,7 +244,7 @@ func CategoriesListKey() string {
 }
 
 // SafeTypeAssert safely performs type assertion with error handling
-func SafeTypeAssert[T any](value interface{}) (T, error) {
+func SafeTypeAssert[T any](value any) (T, error) {
 	var zero T
 	if value == nil {
 		return zero, fmt.Errorf("value is nil")

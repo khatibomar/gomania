@@ -89,7 +89,7 @@ func TestCacheWrapper_GetOrSet(t *testing.T) {
 
 	// Test cache miss and set
 	callCount := 0
-	provider := func() (interface{}, error) {
+	provider := func() (any, error) {
 		callCount++
 		return "test_value", nil
 	}
@@ -124,7 +124,7 @@ func TestCacheWrapper_GetOrSet_ProviderError(t *testing.T) {
 
 	wrapper := NewCacheWrapper(cache, "test")
 
-	provider := func() (interface{}, error) {
+	provider := func() (any, error) {
 		return nil, errors.New("provider error")
 	}
 
@@ -148,33 +148,33 @@ func TestCacheWrapper_HelperMethods(t *testing.T) {
 
 	wrapper := NewCacheWrapper(cache, "program")
 
-	provider := func() (interface{}, error) {
+	provider := func() (any, error) {
 		return "test_data", nil
 	}
 
 	tests := []struct {
 		name     string
-		method   func() (interface{}, error)
+		method   func() (any, error)
 		cacheKey string
 	}{
 		{
 			name:     "GetByID",
-			method:   func() (interface{}, error) { return wrapper.GetByID("123", provider) },
+			method:   func() (any, error) { return wrapper.GetByID("123", provider) },
 			cacheKey: "program:123",
 		},
 		{
 			name:     "GetList",
-			method:   func() (interface{}, error) { return wrapper.GetList(provider) },
+			method:   func() (any, error) { return wrapper.GetList(provider) },
 			cacheKey: "program:list",
 		},
 		{
 			name:     "GetSearch",
-			method:   func() (interface{}, error) { return wrapper.GetSearch("golang", provider) },
+			method:   func() (any, error) { return wrapper.GetSearch("golang", provider) },
 			cacheKey: "program:search:golang",
 		},
 		{
 			name:     "GetByCategory",
-			method:   func() (interface{}, error) { return wrapper.GetByCategory("tech", provider) },
+			method:   func() (any, error) { return wrapper.GetByCategory("tech", provider) },
 			cacheKey: "program:category:tech",
 		},
 	}
@@ -328,33 +328,6 @@ func TestCacheManager(t *testing.T) {
 	}
 	if manager.Long().TTL() != config.LongTTL {
 		t.Errorf("Long cache TTL = %v, want %v", manager.Long().TTL(), config.LongTTL)
-	}
-}
-
-func TestCacheManager_Stats(t *testing.T) {
-	config := DefaultCacheConfig()
-	manager := NewCacheManager(config)
-	defer manager.Close()
-
-	// Add some data to each cache
-	manager.Default().Set("key1", "value1")
-	manager.Short().Set("key2", "value2")
-	manager.Long().Set("key3", "value3")
-
-	stats := manager.Stats()
-
-	if len(stats) != 3 {
-		t.Errorf("Expected 3 stat entries, got %d", len(stats))
-	}
-
-	if stats["default"].TotalItems != 1 {
-		t.Errorf("Default cache items = %d, want 1", stats["default"].TotalItems)
-	}
-	if stats["short"].TotalItems != 1 {
-		t.Errorf("Short cache items = %d, want 1", stats["short"].TotalItems)
-	}
-	if stats["long"].TotalItems != 1 {
-		t.Errorf("Long cache items = %d, want 1", stats["long"].TotalItems)
 	}
 }
 

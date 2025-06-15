@@ -259,7 +259,7 @@ func BenchmarkMemoryCache_Get(b *testing.B) {
 	defer cache.Close()
 
 	// Pre-populate cache
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		cache.Set(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
 	}
 
@@ -288,7 +288,7 @@ func BenchmarkMemoryCache_ConcurrentGet(b *testing.B) {
 	defer cache.Close()
 
 	// Pre-populate cache
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		cache.Set(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
 	}
 
