@@ -5,6 +5,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -17,6 +18,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -29,6 +31,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -74,6 +77,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 JOIN categories c ON p.category_id = c.id

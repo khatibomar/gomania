@@ -117,6 +117,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -129,6 +130,7 @@ type GetProgramRow struct {
 	Description  pgtype.Text `db:"description"`
 	Language     pgtype.Text `db:"language"`
 	Duration     pgtype.Int4 `db:"duration"`
+	CategoryID   pgtype.UUID `db:"category_id"`
 	CategoryName pgtype.Text `db:"category_name"`
 }
 
@@ -141,6 +143,7 @@ func (q *Queries) GetProgram(ctx context.Context, id pgtype.UUID) (GetProgramRow
 		&i.Description,
 		&i.Language,
 		&i.Duration,
+		&i.CategoryID,
 		&i.CategoryName,
 	)
 	return i, err
@@ -153,6 +156,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 JOIN categories c ON p.category_id = c.id
@@ -166,6 +170,7 @@ type GetProgramsByCategoryRow struct {
 	Description  pgtype.Text `db:"description"`
 	Language     pgtype.Text `db:"language"`
 	Duration     pgtype.Int4 `db:"duration"`
+	CategoryID   pgtype.UUID `db:"category_id"`
 	CategoryName string      `db:"category_name"`
 }
 
@@ -184,6 +189,7 @@ func (q *Queries) GetProgramsByCategory(ctx context.Context, id pgtype.UUID) ([]
 			&i.Description,
 			&i.Language,
 			&i.Duration,
+			&i.CategoryID,
 			&i.CategoryName,
 		); err != nil {
 			return nil, err
@@ -203,6 +209,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -215,6 +222,7 @@ type ListProgramsRow struct {
 	Description  pgtype.Text `db:"description"`
 	Language     pgtype.Text `db:"language"`
 	Duration     pgtype.Int4 `db:"duration"`
+	CategoryID   pgtype.UUID `db:"category_id"`
 	CategoryName pgtype.Text `db:"category_name"`
 }
 
@@ -233,6 +241,7 @@ func (q *Queries) ListPrograms(ctx context.Context) ([]ListProgramsRow, error) {
 			&i.Description,
 			&i.Language,
 			&i.Duration,
+			&i.CategoryID,
 			&i.CategoryName,
 		); err != nil {
 			return nil, err
@@ -252,6 +261,7 @@ SELECT
     p.description,
     p.language,
     p.duration,
+    p.category_id,
     c.name as category_name
 FROM programs p
 LEFT JOIN categories c ON p.category_id = c.id
@@ -267,6 +277,7 @@ type SearchProgramsRow struct {
 	Description  pgtype.Text `db:"description"`
 	Language     pgtype.Text `db:"language"`
 	Duration     pgtype.Int4 `db:"duration"`
+	CategoryID   pgtype.UUID `db:"category_id"`
 	CategoryName pgtype.Text `db:"category_name"`
 }
 
@@ -285,6 +296,7 @@ func (q *Queries) SearchPrograms(ctx context.Context, dollar_1 pgtype.Text) ([]S
 			&i.Description,
 			&i.Language,
 			&i.Duration,
+			&i.CategoryID,
 			&i.CategoryName,
 		); err != nil {
 			return nil, err

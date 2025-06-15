@@ -33,12 +33,21 @@ type Cache interface {
 
 	// Close performs cleanup operations
 	Close()
+
+	// Metrics returns cache performance metrics (hits, misses, evicted)
+	Metrics() (int64, int64, int64)
+
+	// ResetMetrics resets all performance counters
+	ResetMetrics()
 }
 
 // Stats represents cache statistics
 type Stats struct {
 	TotalItems int           `json:"total_items"`
 	TTL        time.Duration `json:"ttl"`
+	Hits       int64         `json:"hits"`
+	Misses     int64         `json:"misses"`
+	Evicted    int64         `json:"evicted"`
 }
 
 // NewMemoryCache creates a new memory cache instance

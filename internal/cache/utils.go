@@ -208,11 +208,12 @@ func (cm *CacheManager) Stats() map[string]Stats {
 
 // Common cache key patterns
 const (
-	KeyPatternAll      = "*"
-	KeyPatternUsers    = "user:*"
-	KeyPatternPrograms = "program:*"
-	KeyPatternSearch   = "search:*"
-	KeyPatternCategory = "category:*"
+	KeyPatternAll              = "*"
+	KeyPatternUsers            = "user:*"
+	KeyPatternPrograms         = "program:*"
+	KeyPatternProgramsSearch   = "programs:search:*"
+	KeyPatternProgramsCategory = "programs:category:*"
+	KeyPatternCategories       = "categories:*"
 )
 
 // Helper functions for common cache operations
