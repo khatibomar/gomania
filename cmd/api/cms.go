@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -11,12 +12,17 @@ import (
 func (app *application) createProgramHandler(w http.ResponseWriter, r *http.Request) {
 	var req service.CreateProgramRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid request body")
 		return
 	}
 
 	program, err := app.programService.CreateProgram(r.Context(), req)
 	if err != nil {
+		var errAlreadyExists *service.ErrAlreadyExists
+		if errors.As(err, &errAlreadyExists) {
+			app.conflictResponse(w, r, errAlreadyExists.Error())
+			return
+		}
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -42,7 +48,7 @@ func (app *application) getProgramHandler(w http.ResponseWriter, r *http.Request
 	idStr := r.PathValue("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid program ID")
 		return
 	}
 
@@ -61,13 +67,13 @@ func (app *application) updateProgramHandler(w http.ResponseWriter, r *http.Requ
 	idStr := r.PathValue("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid program ID")
 		return
 	}
 
 	var req service.UpdateProgramRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid request body")
 		return
 	}
 	req.ID = id
@@ -87,7 +93,7 @@ func (app *application) deleteProgramHandler(w http.ResponseWriter, r *http.Requ
 	idStr := r.PathValue("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid program ID")
 		return
 	}
 
@@ -136,12 +142,17 @@ func (app *application) searchProgramsHandler(w http.ResponseWriter, r *http.Req
 func (app *application) createCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	var req service.CategoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid request body")
 		return
 	}
 
 	category, err := app.programService.CreateCategory(r.Context(), req)
 	if err != nil {
+		var errAlreadyExists *service.ErrAlreadyExists
+		if errors.As(err, &errAlreadyExists) {
+			app.conflictResponse(w, r, errAlreadyExists.Error())
+			return
+		}
 		app.serverErrorResponse(w, r, err)
 		return
 	}
@@ -167,7 +178,7 @@ func (app *application) getProgramsByCategoryHandler(w http.ResponseWriter, r *h
 	idStr := r.PathValue("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		app.badRequestErrorResponse(w, r, err, "invalid category ID")
 		return
 	}
 

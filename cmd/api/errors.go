@@ -1,6 +1,9 @@
 package main
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+)
 
 func (app *application) logError(r *http.Request, err error) {
 	var (
@@ -34,16 +37,13 @@ func (app *application) badRequestErrorResponse(w http.ResponseWriter, r *http.R
 	app.errorResponse(w, r, http.StatusBadRequest, message)
 }
 
-func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
-}
-
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "the requested resource could not be found"
+	app.logError(r, errors.New(message))
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
-func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := "the method is not supported for this resource"
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+func (app *application) conflictResponse(w http.ResponseWriter, r *http.Request, message string) {
+	app.logError(r, errors.New(message)) // Log the conflict as an error
+	app.errorResponse(w, r, http.StatusConflict, message)
 }
