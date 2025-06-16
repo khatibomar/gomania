@@ -55,14 +55,20 @@ func TestMemoryCache_Clear(t *testing.T) {
 	cache.Set("key1", "value1")
 	cache.Set("key2", "value2")
 
-	if cache.Size() != 2 {
-		t.Errorf("Expected cache size 2, got %d", cache.Size())
+	// Verify items exist
+	_, found1 := cache.Get("key1")
+	_, found2 := cache.Get("key2")
+	if !found1 || !found2 {
+		t.Error("Expected both keys to exist before clear")
 	}
 
 	cache.Clear()
 
-	if cache.Size() != 0 {
-		t.Errorf("Expected cache size 0 after clear, got %d", cache.Size())
+	// Verify items are gone
+	_, found1 = cache.Get("key1")
+	_, found2 = cache.Get("key2")
+	if found1 || found2 {
+		t.Error("Expected keys to be cleared")
 	}
 }
 
@@ -113,59 +119,6 @@ func TestMemoryCache_InvalidatePattern(t *testing.T) {
 	}
 }
 
-func TestMemoryCache_Size(t *testing.T) {
-	cache := New(time.Minute)
-	defer cache.Close()
-
-	if cache.Size() != 0 {
-		t.Errorf("Expected initial size 0, got %d", cache.Size())
-	}
-
-	cache.Set("key1", "value1")
-	cache.Set("key2", "value2")
-
-	if cache.Size() != 2 {
-		t.Errorf("Expected size 2, got %d", cache.Size())
-	}
-}
-
-func TestMemoryCache_Keys(t *testing.T) {
-	cache := New(time.Minute)
-	defer cache.Close()
-
-	cache.Set("key1", "value1")
-	cache.Set("key2", "value2")
-
-	keys := cache.Keys()
-	if len(keys) != 2 {
-		t.Errorf("Expected 2 keys, got %d", len(keys))
-	}
-
-	keyMap := make(map[string]bool)
-	for _, key := range keys {
-		keyMap[key] = true
-	}
-
-	if !keyMap["key1"] || !keyMap["key2"] {
-		t.Error("Expected keys to contain key1 and key2")
-	}
-}
-
-func TestMemoryCache_TTLOperations(t *testing.T) {
-	cache := New(time.Minute)
-	defer cache.Close()
-
-	if cache.TTL() != time.Minute {
-		t.Errorf("Expected TTL to be 1 minute, got %v", cache.TTL())
-	}
-
-	cache.SetTTL(2 * time.Minute)
-
-	if cache.TTL() != 2*time.Minute {
-		t.Errorf("Expected TTL to be 2 minutes, got %v", cache.TTL())
-	}
-}
-
 func TestMemoryCache_ConcurrentAccess(t *testing.T) {
 	cache := New(time.Minute)
 	defer cache.Close()
@@ -194,9 +147,16 @@ func TestMemoryCache_ConcurrentAccess(t *testing.T) {
 		<-done
 	}
 
-	// Verify some data was written
-	if cache.Size() == 0 {
-		t.Error("Expected cache to contain data after concurrent writes")
+	// Verify some data was written by checking a few keys
+	foundAny := false
+	for i := range 10 {
+		if _, found := cache.Get(fmt.Sprintf("key%d", i)); found {
+			foundAny = true
+			break
+		}
+	}
+	if !foundAny {
+		t.Error("Expected cache to contain some data after concurrent writes")
 	}
 }
 

@@ -40,22 +40,30 @@ func Example_patterns() {
 	c.Set("product:100", "Laptop")
 	c.Set("product:101", "Mouse")
 
-	fmt.Printf("Cache size: %d\n", c.Size())
+	// Verify all items are cached
+	if _, found := c.Get("user:1"); found {
+		fmt.Println("Users cached")
+	}
+	if _, found := c.Get("product:100"); found {
+		fmt.Println("Products cached")
+	}
 
 	// Invalidate all user entries
 	c.InvalidatePattern("user:*")
 
-	fmt.Printf("Cache size after invalidating users: %d\n", c.Size())
-
-	// Check remaining items
+	// Check what remains
+	if _, found := c.Get("user:1"); !found {
+		fmt.Println("Users invalidated")
+	}
 	if _, found := c.Get("product:100"); found {
-		fmt.Println("Product still cached")
+		fmt.Println("Products still cached")
 	}
 
 	// Output:
-	// Cache size: 5
-	// Cache size after invalidating users: 2
-	// Product still cached
+	// Users cached
+	// Products cached
+	// Users invalidated
+	// Products still cached
 }
 
 func Example_expiration() {

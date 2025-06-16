@@ -19,18 +19,6 @@ type Cache interface {
 	// InvalidatePattern removes all cache entries that match a pattern
 	InvalidatePattern(pattern string)
 
-	// Size returns the number of items in the cache
-	Size() int
-
-	// TTL returns the current TTL setting
-	TTL() time.Duration
-
-	// SetTTL updates the cache TTL (affects new entries only)
-	SetTTL(ttl time.Duration)
-
-	// Keys returns all cache keys (useful for debugging)
-	Keys() []string
-
 	// Close performs cleanup operations
 	Close()
 }

@@ -102,39 +102,6 @@ func (c *Memory) InvalidatePattern(pattern string) {
 	}
 }
 
-// Size returns the number of items in the cache
-func (c *Memory) Size() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return len(c.items)
-}
-
-// TTL returns the current TTL setting
-func (c *Memory) TTL() time.Duration {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.ttl
-}
-
-// SetTTL updates the cache TTL (affects new entries only)
-func (c *Memory) SetTTL(ttl time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.ttl = ttl
-}
-
-// Keys returns all cache keys (useful for debugging)
-func (c *Memory) Keys() []string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	keys := make([]string, 0, len(c.items))
-	for key := range c.items {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
 // Close stops the cleanup goroutine
 func (c *Memory) Close() {
 	close(c.stop)

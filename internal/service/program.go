@@ -408,30 +408,3 @@ func (s *ProgramService) GetCategories(ctx context.Context) ([]database.GetCateg
 	s.logger.Info("Successfully fetched categories", "count", len(categories))
 	return categories, nil
 }
-
-// ClearCache clears all cache entries
-func (s *ProgramService) ClearCache() {
-	s.logger.Info("Clearing all cache entries")
-	s.cache.Clear()
-}
-
-// InvalidateProgramCache invalidates all program-related cache entries
-// This includes individual programs, lists of programs, search results, and programs-by-category lists.
-func (s *ProgramService) InvalidateProgramCache() {
-	s.logger.Info("Invalidating all program-related cache")
-	s.cache.InvalidatePattern(cache.KeyPatternPrograms) // e.g., "program:*" for individual items
-	s.cache.InvalidatePattern("programs:*")             // e.g., "programs:list", "programs:search:*", "programs:category:*"
-}
-
-// InvalidateCategoryCache invalidates all category-entity-related cache entries (e.g., list of all categories)
-// This does NOT invalidate program lists grouped by category. For that, use InvalidateProgramCache or more targeted invalidations.
-func (s *ProgramService) InvalidateCategoryCache() {
-	s.logger.Info("Invalidating category entity cache")
-	s.cache.InvalidatePattern(cache.KeyPatternCategories) // e.g., "categories:*"
-}
-
-// SetCacheTTL updates the cache TTL (affects new entries only)
-func (s *ProgramService) SetCacheTTL(ttl time.Duration) {
-	s.cache.SetTTL(ttl)
-	s.logger.Info("Cache TTL updated", "new_ttl", ttl)
-}

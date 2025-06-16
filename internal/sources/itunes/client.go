@@ -134,15 +134,3 @@ func (c *Client) parsePublishedAt(result Result) *time.Time {
 	}
 	return &t
 }
-
-func (r *Result) ToPublishedAt() (*time.Time, error) {
-	if r.ReleaseDate == "" {
-		return nil, nil
-	}
-
-	t, err := time.Parse("2006-01-02T15:04:05Z", r.ReleaseDate)
-	if err != nil {
-		return nil, err
-	}
-	return &t, nil
-}
