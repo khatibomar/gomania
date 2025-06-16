@@ -6,17 +6,33 @@ A simple and clean podcast content management system built with Go, focusing on 
 
 - **Simple CMS**: Clean content management for programs with essential fields only
 - **Category Management**: Organize programs by categories
-- **Arabic Content**: Full Arabic language support
-- **External Source Integration**: Optional iTunes search integration with auto-import capability
-- **Clean Architecture**: Simple layered design with clear separation of concerns
-- **Type Safety**: SQLC-generated database queries
-- **RESTful API**: Simple and intuitive API endpoints
+- **Arabic Content**: Full Arabic language support with UTF-8 encoding
+- **Smart Discovery**: Unified search API that intelligently searches local content first, then falls back to external sources when no local results are found
+- **External Source Integration**: 
+  - iTunes API integration for podcast discovery
+  - Pluggable architecture for adding new sources (Spotify, Google Podcasts, etc.)
+  - Automatic fallback when local search yields no results
+- **Performance Optimizations**:
+  - In-memory caching system for external API responses
+  - Connection pooling for database operations
+  - Efficient search algorithms
+- **Developer Experience**:
+  - Clean layered architecture with clear separation of concerns
+  - Type-safe database queries with SQLC generation
+  - Comprehensive API testing suite
+  - RESTful API design with consistent patterns
+- **Production Ready**: 
+  - Structured logging with slog
+  - Health check endpoints
+  - CORS support
+  - Environment-based configuration
 
 ## 📋 Requirements
 
 - Go 1.24+
-- dbmate
+- dbmate (for database migrations)
 - Docker & Docker Compose
+- jq (for API testing script)
 
 ## 🛠️ Installation & Setup
 
@@ -38,9 +54,17 @@ export GOMANIA_CONNECTION_STRING="postgres://postgres:postgres@localhost:5430/po
 
 ### 4. Initialize Database
 ```bash
+make setup
+```
+
+This runs: `docker-up` → `db-up` → `db-seed` automatically.
+
+Or manually:
+```bash
 make docker-up
 make gen
 make db-up
+make db-seed
 ```
 
 ### 5. Run Server
@@ -74,6 +98,22 @@ The system uses a simplified schema with only essential fields:
 - **created_at**: Timestamp when record was created
 - **updated_at**: Timestamp when record was last updated
 
+### Smart Discovery System
+
+The discovery API (`/v1/programs`) provides intelligent search capabilities:
+
+1. **Local-First Search**: Searches your local podcast database first
+2. **Automatic Fallback**: If no local results found, automatically searches external sources
+3. **Unified Response**: Returns results in a consistent format regardless of source
+4. **Performance Optimized**: Caches external results to reduce API calls
+
+#### External Sources Integration
+- **iTunes API**: Search and discover podcasts from iTunes Store
+- **Smart Fallback**: Seamless transition to external search when local database has no matches
+- **Source Management**: Extensible architecture for adding new podcast sources
+- **Response Aggregation**: Combines results from multiple sources with metadata about each source
+- **Caching Layer**: Intelligent caching to improve performance and reduce external API calls
+
 ## 🌐 API Documentation
 
 [API.MD](API.md)
@@ -83,20 +123,30 @@ The system uses a simplified schema with only essential fields:
 ### Project Structure
 ```
 gomania/
-├── cmd/api/              # API server
-│   ├── main.go          # Entry point
-│   ├── routes.go        # Route definitions
-│   ├── cms.go           # CMS handlers
-│   ├── errors.go        # Error handlers
-│   └── ...
+├── cmd/
+│   ├── api/             # API server
+│   │   ├── main.go      # Entry point
+│   │   ├── routes.go    # Route definitions
+│   │   ├── cms.go       # CMS handlers
+│   │   ├── discovery.go # Discovery & search handlers
+│   │   ├── errors.go    # Error handlers
+│   │   └── ...
+│   └── tools/
+│       └── seed/        # Database seeding tool
 ├── internal/
+│   ├── cache/           # Caching system
 │   ├── database/        # SQLC generated code
-│   └── service/         # Business logic
-│       └── program.go   # Program & category service
+│   ├── service/         # Business logic
+│   │   └── program.go   # Program & category service
+│   └── sources/         # External source integrations
+│       ├── manager.go   # Source manager
+│       ├── client.go    # Source client interface
+│       └── itunes/      # iTunes API client
 ├── data/sql/
 │   ├── migrations/      # Database migrations
-│   ├── queries/         # SQL queries
-│   └── seed.sql         # Sample data
+│   └── queries/         # SQL queries
+├── scripts/
+│   └── test_api.sh      # API testing script
 └── docker-compose.yaml  # Database setup
 ```
 
@@ -127,19 +177,36 @@ go run cmd/api/*.go \
 
 ## 🧪 Testing
 
-### Database Commands
+### Make Commands
 ```bash
-# Initialize database (migrations + sample data)
-make db-init
+# Setup - Complete initialization (recommended)
+make setup              # docker-up + db-up + db-seed
 
-# Reset database completely
-make db-reset
+# Build and run
+make build              # Build API binary
+make api                # Build and run API server
+make debug              # Build and run with debugger
 
-# Run migrations only
-make db-migrate
+# Database
+make db-up              # Run migrations
+make db-drop            # Drop database
+make db-seed            # Load sample data
 
-# Load sample data only
-make db-seed
+# Docker
+make docker-up          # Start database container
+make docker-down        # Stop containers
+
+# Code generation
+make gen                # Generate SQLC code
+
+# Testing
+make test-api           # Run API endpoint tests
+```
+
+### Automated Testing
+```bash
+# Run comprehensive API tests
+make test-api
 ```
 
 ### Manual Testing
@@ -147,24 +214,33 @@ make db-seed
 # Health check
 curl http://localhost:4000/v1/healthcheck
 
-# List programs
+# Discovery API - List all programs
 curl http://localhost:4000/v1/programs
 
-# Search
+# Discovery API - Smart search (searches local first, then external if no results)
 curl "http://localhost:4000/v1/programs?q=تقنية"
 
-# Search with external sources
-curl "http://localhost:4000/v1/programs?q=technology&external=true"
+# Discovery API - Search that triggers external fallback
+curl "http://localhost:4000/v1/programs?q=nonexistentterm"
 
-# List categories
+# External sources - List available sources
+curl http://localhost:4000/v1/external/sources
+
+# External sources - Direct iTunes search
+curl "http://localhost:4000/v1/external/search?source=itunes&q=technology&limit=5"
+
+# CMS - List categories
 curl http://localhost:4000/v1/cms/categories
 
-# Create category
+# CMS - Create category
 curl -X POST http://localhost:4000/v1/cms/categories \
   -H "Content-Type: application/json" \
   -d '{"name":"تقنية"}'
 
-# Create program
+# CMS - List programs
+curl http://localhost:4000/v1/cms/programs
+
+# CMS - Create program (get category_id from above first)
 curl -X POST http://localhost:4000/v1/cms/programs \
   -H "Content-Type: application/json" \
   -d '{
@@ -174,6 +250,12 @@ curl -X POST http://localhost:4000/v1/cms/programs \
     "language":"ar",
     "duration":1800
   }'
+
+# CMS - Get programs by category
+curl http://localhost:4000/v1/cms/categories/{category_id}/programs
+
+# Debug information
+curl http://localhost:4000/debug/vars
 ```
 
 ## 📊 Sample Data
@@ -196,11 +278,13 @@ The system includes sample Arabic categories and programs:
 - Entertainment shows
 - News programs
 
+### External Sources
+- **iTunes**: Access to iTunes podcast directory
+- **Extensible**: Architecture supports adding more sources (Spotify, Google Podcasts, etc.)
+
 Load sample data with:
 ```bash
 make db-seed
-# OR
-./scripts/init_db.sh
 ```
 
 ## 🚀 Deployment
@@ -225,16 +309,60 @@ docker compose up -d
 
 ### JavaScript/Node.js
 ```javascript
-// Search programs
+// Discovery API - Search programs (local + external fallback)
 const searchPrograms = async (query) => {
   const response = await fetch(`http://localhost:4000/v1/programs?q=${encodeURIComponent(query)}`);
   const data = await response.json();
-  return data.search ? data.search.results : data.programs;
+  
+  if (data.search) {
+    // Search response with local and potentially external results
+    return {
+      results: data.search.results,
+      query: data.search.query,
+      count: data.search.count,
+      sources: data.search.sources
+    };
+  } else {
+    // Simple list response
+    return {
+      results: data.programs,
+      count: data.programs ? data.programs.length : 0
+    };
+  }
 };
 
-// Usage
-const programs = await searchPrograms('تقنية');
-console.log(programs);
+// External sources - Search specific source
+const searchExternalSource = async (source, query, limit = 10) => {
+  const response = await fetch(
+    `http://localhost:4000/v1/external/search?source=${source}&q=${encodeURIComponent(query)}&limit=${limit}`
+  );
+  const data = await response.json();
+  return data.external_search.results;
+};
+
+// External sources - List available sources
+const getAvailableSources = async () => {
+  const response = await fetch('http://localhost:4000/v1/external/sources');
+  const data = await response.json();
+  return data.external_sources.sources;
+};
+
+// Usage examples
+const searchResult = await searchPrograms('تقنية');
+console.log('Search Results:', searchResult.results);
+console.log('Sources used:', searchResult.sources);
+
+const itunesResults = await searchExternalSource('itunes', 'technology', 5);
+console.log('iTunes Results:', itunesResults);
+
+const sources = await getAvailableSources();
+console.log('Available Sources:', sources);
+
+// Example: Search that triggers external fallback
+const fallbackResult = await searchPrograms('nonexistentterm');
+if (fallbackResult.sources?.external) {
+  console.log('External sources triggered:', fallbackResult.sources.external);
+}
 
 // Create category first
 const createCategory = async (name) => {
