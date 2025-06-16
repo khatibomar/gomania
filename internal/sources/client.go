@@ -1,6 +1,9 @@
 package sources
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Podcast struct {
 	ID          string
@@ -18,6 +21,6 @@ type Podcast struct {
 }
 
 type Client interface {
-	SearchPodcasts(term string, limit int) ([]Podcast, error)
+	SearchPodcasts(ctx context.Context, term string, limit int) ([]Podcast, error)
 	GetSourceName() string
 }

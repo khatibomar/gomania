@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -247,7 +248,7 @@ func CategoriesListKey() string {
 func SafeTypeAssert[T any](value any) (T, error) {
 	var zero T
 	if value == nil {
-		return zero, fmt.Errorf("value is nil")
+		return zero, errors.New("value is nil")
 	}
 
 	result, ok := value.(T)
@@ -256,40 +257,4 @@ func SafeTypeAssert[T any](value any) (T, error) {
 	}
 
 	return result, nil
-}
-
-// CacheMetrics provides basic metrics for cache operations
-type CacheMetrics struct {
-	Hits   int64
-	Misses int64
-}
-
-// HitRate calculates the cache hit rate
-func (m *CacheMetrics) HitRate() float64 {
-	total := m.Hits + m.Misses
-	if total == 0 {
-		return 0
-	}
-	return float64(m.Hits) / float64(total)
-}
-
-// Total returns the total number of cache operations
-func (m *CacheMetrics) Total() int64 {
-	return m.Hits + m.Misses
-}
-
-// RecordHit increments the hit counter
-func (m *CacheMetrics) RecordHit() {
-	m.Hits++
-}
-
-// RecordMiss increments the miss counter
-func (m *CacheMetrics) RecordMiss() {
-	m.Misses++
-}
-
-// Reset resets all counters
-func (m *CacheMetrics) Reset() {
-	m.Hits = 0
-	m.Misses = 0
 }

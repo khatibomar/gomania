@@ -349,7 +349,7 @@ func TestCacheKeyHelpers(t *testing.T) {
 		},
 		{
 			name:     "ProgramsListKey",
-			function: func() string { return ProgramsListKey() },
+			function: ProgramsListKey,
 			expected: "programs:list",
 		},
 		{
@@ -369,7 +369,7 @@ func TestCacheKeyHelpers(t *testing.T) {
 		},
 		{
 			name:     "CategoriesListKey",
-			function: func() string { return CategoriesListKey() },
+			function: CategoriesListKey,
 			expected: "categories:list",
 		},
 	}
@@ -404,44 +404,6 @@ func TestSafeTypeAssert(t *testing.T) {
 	_, err = SafeTypeAssert[string](nil)
 	if err == nil {
 		t.Error("Expected error for nil value")
-	}
-}
-
-func TestCacheMetrics(t *testing.T) {
-	metrics := &CacheMetrics{}
-
-	// Initial state
-	if metrics.HitRate() != 0 {
-		t.Errorf("Initial hit rate = %v, want 0", metrics.HitRate())
-	}
-	if metrics.Total() != 0 {
-		t.Errorf("Initial total = %v, want 0", metrics.Total())
-	}
-
-	// Record some operations
-	metrics.RecordHit()
-	metrics.RecordHit()
-	metrics.RecordMiss()
-
-	if metrics.Hits != 2 {
-		t.Errorf("Hits = %v, want 2", metrics.Hits)
-	}
-	if metrics.Misses != 1 {
-		t.Errorf("Misses = %v, want 1", metrics.Misses)
-	}
-	if metrics.Total() != 3 {
-		t.Errorf("Total = %v, want 3", metrics.Total())
-	}
-
-	expectedHitRate := float64(2) / float64(3)
-	if metrics.HitRate() != expectedHitRate {
-		t.Errorf("Hit rate = %v, want %v", metrics.HitRate(), expectedHitRate)
-	}
-
-	// Reset
-	metrics.Reset()
-	if metrics.Hits != 0 || metrics.Misses != 0 {
-		t.Error("Reset() should zero all counters")
 	}
 }
 

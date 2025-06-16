@@ -33,7 +33,7 @@ func (m *Manager) SearchAllSources(ctx context.Context, term string, limit int) 
 	results := make(map[string][]Podcast)
 
 	for sourceName, client := range m.clients {
-		podcasts, err := client.SearchPodcasts(term, limit)
+		podcasts, err := client.SearchPodcasts(ctx, term, limit)
 		if err != nil {
 			// Log error but continue with other sources
 			continue
@@ -51,7 +51,7 @@ func (m *Manager) SearchBySource(ctx context.Context, sourceName, term string, l
 		return nil, fmt.Errorf("source '%s' not found", sourceName)
 	}
 
-	return client.SearchPodcasts(term, limit)
+	return client.SearchPodcasts(ctx, term, limit)
 }
 
 // GetAvailableSources returns list of registered source names

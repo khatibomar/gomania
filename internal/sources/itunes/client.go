@@ -1,6 +1,7 @@
 package itunes
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,7 +49,7 @@ func NewClient() *Client {
 	}
 }
 
-func (c *Client) SearchPodcasts(term string, limit int) ([]sources.Podcast, error) {
+func (c *Client) SearchPodcasts(ctx context.Context, term string, limit int) ([]sources.Podcast, error) {
 	if limit == 0 {
 		limit = 50
 	}
@@ -60,9 +61,14 @@ func (c *Client) SearchPodcasts(term string, limit int) ([]sources.Podcast, erro
 
 	searchURL := fmt.Sprintf("%s?%s", c.baseURL, params.Encode())
 
-	resp, err := c.httpClient.Get(searchURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, searchURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
