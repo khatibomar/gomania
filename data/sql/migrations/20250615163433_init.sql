@@ -29,7 +29,7 @@ CREATE TABLE programs (
     created_at TIMESTAMP
     WITH
         TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP
+    updated_at TIMESTAMP
     WITH
         TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
