@@ -8,7 +8,7 @@ A simple and clean podcast content management system built with Go, focusing on 
 - **Category Management**: Organize programs by categories
 - **Arabic Content**: Full Arabic language support with UTF-8 encoding
 - **Smart Discovery**: Unified search API that intelligently searches local content first, then falls back to external sources when no local results are found
-- **External Source Integration**: 
+- **External Source Integration**:
   - iTunes API integration for podcast discovery
   - Pluggable architecture for adding new sources (Spotify, Google Podcasts, etc.)
   - Automatic fallback when local search yields no results
@@ -21,7 +21,7 @@ A simple and clean podcast content management system built with Go, focusing on 
   - Type-safe database queries with SQLC generation
   - Comprehensive API testing suite
   - RESTful API design with consistent patterns
-- **Production Ready**: 
+- **Production Ready**:
   - Structured logging with slog
   - Health check endpoints
   - CORS support
@@ -38,21 +38,11 @@ A simple and clean podcast content management system built with Go, focusing on 
 
 ### 1. Clone Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/khatibomar/gomania
 cd gomania
 ```
 
-### 2. Start Database
-```bash
-docker compose up -d database
-```
-
-### 3. Set Environment Variables
-```bash
-export GOMANIA_CONNECTION_STRING="postgres://postgres:postgres@localhost:5430/postgres?sslmode=disable"
-```
-
-### 4. Initialize Database
+### 2. Initialize Database
 ```bash
 make setup
 ```
@@ -67,14 +57,14 @@ make db-up
 make db-seed
 ```
 
-### 5. Run Server
+### 3. Run Server
 ```bash
 make build api
 ```
 
 Server will start on `http://localhost:4000`
 
-## 6. Database UI
+## 4. Database UI
 
 I am using [pgweb](https://sosedoff.github.io/pgweb/)
 
@@ -313,7 +303,7 @@ docker compose up -d
 const searchPrograms = async (query) => {
   const response = await fetch(`http://localhost:4000/v1/programs?q=${encodeURIComponent(query)}`);
   const data = await response.json();
-  
+
   if (data.search) {
     // Search response with local and potentially external results
     return {
